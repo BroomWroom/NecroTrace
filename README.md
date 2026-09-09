@@ -1,7 +1,7 @@
 # NecroTrace
 ### Forensic Metagenomics & Machine Learning Platform for Postmortem Interval Estimation
 
-NecroTrace translates microbial community succession—the "necrobiome clock"—into quantifiable, court-defensible Postmortem Interval (PMI) estimates with probabilistic uncertainty bounds.
+NecroTrace translates microbial community succession that is the "necrobiome clock" into quantifiable, court-defensible Postmortem Interval (PMI) estimates with probabilistic uncertainty bounds.
 
 ---
 
@@ -73,6 +73,7 @@ Forensic determination of the time of death is critical in death investigations 
 necrotrace/
 ├── .env.example                       # Environment configuration template
 ├── .gitignore                          # Standard git ignore rules
+├── LICENSE                             # MIT license terms
 ├── README.md                           # Project documentation
 ├── requirements.txt                    # Python package dependencies
 ├── setup.py                            # Package installation script
