@@ -1,35 +1,50 @@
 # NecroTrace
-### Forensic Metagenomics & Machine Learning Platform for Postmortem Interval Estimation
 
-NecroTrace translates microbial community succession that is the "necrobiome clock" into quantifiable, court-defensible Postmortem Interval (PMI) estimates with probabilistic uncertainty bounds.
+<div align="center">
+  <img src="assets/logo_transparent.png" alt="NecroTrace Logo" width="380" />
+  <br/>
+  <h3>Forensic Metagenomics & Machine Learning Platform for Postmortem Interval Estimation</h3>
+  <p><b>Team BroomWroom &bull; Lead Investigator: Tanish Walture &bull; VMedithon 3.0 &bull; VIT Chennai</b></p>
+
+  [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-22c55e.svg?style=flat-square&logo=python&logoColor=white)](https://python.org)
+  [![Streamlit](https://img.shields.io/badge/Streamlit-1.32%2B-ff4b4b.svg?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io)
+  [![XGBoost](https://img.shields.io/badge/XGBoost-Quantile%20ML-16a34a.svg?style=flat-square)](https://xgboost.readthedocs.io)
+  [![ReportLab](https://img.shields.io/badge/ReportLab-Form%20PM--5372-0284c7.svg?style=flat-square)](https://www.reportlab.com)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-cef79e.svg?style=flat-square&color=222f30&labelColor=cef79e)](LICENSE)
+</div>
 
 ---
 
-## Overview
+## Executive Abstract
 
-Forensic determination of the time of death is critical in death investigations and criminal proceedings. Traditional methods (such as *algor mortis*, *rigor mortis*, *livor mortis*, and forensic entomology) often yield wide, subjective time windows that degrade in accuracy after the initial 24–48 hours or under fluctuating environmental conditions.
+Forensic determination of the time elapsed since death (Postmortem Interval, **PMI**) represents one of the most consequential yet challenging determinations in criminal investigations and medico-legal proceedings. Classical physical indicators—*algor mortis* (body cooling), *rigor mortis* (muscle rigidity), *livor mortis* (blood settling), and forensic entomology—suffer from rapid signal degradation beyond 24–48 hours and high sensitivity to ambient temperature and microclimates.
 
-**NecroTrace** provides an objective, data-driven alternative. By analyzing metagenomic 16S rRNA or shotgun sequencing data from decomposing remains, the platform identifies reproducible waves of microbial succession and applies machine learning regression to calculate high-confidence PMI windows.
+**NecroTrace** translates the continuous, reproducible ecological succession of the decomposing human necrobiome into quantifiable, court-defensible PMI estimations with rigorous probabilistic uncertainty bounds:
+
+1. **Metagenomic Succession Clock:** Leverages 16S rRNA taxonomic abundance profiles to track predictable community blooms and crashes across postmortem decay stages.
+2. **Quantile Machine Learning:** Employs tuned Gradient Boosted Quantile Regressors (XGBoost) outputting calibrated 10th, 50th, and 90th percentile bounds rather than subjective single-point guesses.
+3. **Medical Examiner Triage Workflow:** Bridges physical macroscopic observations (corneal opacity, skin marbling, bloating, purged fluids) with molecular bioindicators.
+4. **Courtroom-Admissible Dossier Export:** Direct programmatic synthesis of official **Form PM-5372** postmortem autopsy reports with cryptographic SHA-256 verification seals.
 
 ```
-       [ Metagenomic Data ] (OTU / ASV Abundance Tables)
+       [ Metagenomic Data ] (16S rRNA OTU / ASV Abundance Tables)
                  │
                  ▼
    ┌────────────────────────────┐
-   │ Bioinformatic Preprocessing│  Read Depth Filtering & Rare Taxa Pruning
-   │ & Normalization            │  Compositional Transforms (TSS, CSS, CLR)
+   │ Bioinformatic Pipeline     │  Read Depth Filtering & Rare Taxa Pruning
+   │ & Normalization            │  Compositional Transforms (TSS, Centered Log-Ratio)
    └─────────────┬──────────────┘
                  │
                  ▼
    ┌────────────────────────────┐
-   │ Machine Learning Pipeline  │  Non-linear Regression (Random Forest & XGBoost)
-   │ & Uncertainty Estimation   │  Quantile Bounds (10th, 50th, 90th percentiles)
+   │ Machine Learning Engine    │  Non-linear Quantile Regression (XGBoost)
+   │ & Uncertainty Calibration  │  Probabilistic Interval Bounds (p10, p50, p90)
    └─────────────┬──────────────┘
                  │
                  ▼
    ┌────────────────────────────┐
-   │ Decision Support Dashboard │  Interactive Streamlit Application
-   │ & Forensic Reporting       │  Courtroom-Ready PDF Summary Export
+   │ Diagnostic Triage &        │  Interactive Darkroom Medical Examiner Suite
+   │ Medico-Legal Dossier       │  Official Form PM-5372 PDF Courtroom Export
    └────────────────────────────┘
 ```
 
@@ -37,122 +52,225 @@ Forensic determination of the time of death is critical in death investigations 
 
 ## Comparison: Traditional PMI vs. NecroTrace
 
-| Dimension | Traditional Forensic Indicators | NecroTrace Platform |
+| Dimension | Classical Forensic Indicators | NecroTrace Metagenomic Platform |
 | :--- | :--- | :--- |
-| **Primary Biomarkers** | Body temperature, muscle stiffness, insect larvae | Postmortem microbial succession dynamics (bacteria & fungi) |
-| **Temporal Window** | Accurate mostly within 24–48 hours; irregular thereafter | Robust across extended decomposition stages (days to weeks) |
-| **Objectivity** | Subject to investigator interpretation | Algorithmic analysis with repeatable feature extraction |
-| **Uncertainty Quantification** | Coarse estimation ranges without formal probabilities | Statistical confidence intervals via Quantile Regression |
-| **Courtroom Defensibility** | Challenged under rigorous evidentiary standards | Auditable bioinformatics pipeline with transparent metrics |
+| **Primary Biomarkers** | Body core temperature, muscle stiffness, insect colonization | Postmortem microbial succession dynamics (16S rRNA / shotgun metagenomics) |
+| **Effective Temporal Window** | Accurate mostly within initial 24–48 hours | Robust across extended decay stages (1 to 25+ days) |
+| **Environmental Robustness** | Highly volatile to ambient drafts, humidity, clothing | Normalized across temperature and microenvironment covariates |
+| **Analytical Objectivity** | Subjective assessment by investigator | Algorithmic, reproducible mathematical feature extraction |
+| **Uncertainty Quantification** | Heuristic, uncalibrated estimation windows | Formal statistical confidence intervals via Quantile Regression (p10, p50, p90) |
+| **Evidentiary Standard** | Frequently disputed under Daubert / Frye challenges | Fully auditable bioinformatic provenance with SHA-256 cryptographic verification |
 
 ---
 
-## Core Capabilities
+## Platform Architecture & Core Workflows
 
-### 1. Bioinformatic Preprocessing
-- **Quality Control & Read-Depth Filtering:** Excludes low-coverage samples below sequencing thresholds to eliminate spurious noise.
-- **Prevalence & Abundance Thresholding:** Prunes rare or transient taxa that do not contribute generalizable succession signal.
-- **Compositional Normalization:** Supports Total Sum Scaling (TSS), Cumulative Sum Scaling (CSS), and Centered Log-Ratio (CLR) transformations to account for varying library sizes and the simplex nature of microbiome data.
-- **Ecological Feature Engineering:** Computes alpha diversity (Shannon entropy), richness indices, and taxa log-ratios between bloomers and senescing organisms.
+### View 1: Forensic Overview & Succession Matrix (`?view=landing`)
+- **Kinetic WebGL Hero:** High-performance canvas visualizing dynamic microbial particle flow and postmortem dispersion.
+- **Microbial Succession Waves:**
+  - *Wave 1: Fresh / Early Stage (0–3 Days)* &bull; Dominated by aerotolerant mucosal and dermal colonizers (*Staphylococcus*, *Streptococcus*, *Cutibacterium*).
+  - *Wave 2: Active Putrefaction (3–8 Days)* &bull; Shift toward hypoxic enteric bloomers and liquefaction catalysts (*Clostridium perfringens*, *Proteus mirabilis*, *Bacteroides fragilis*).
+  - *Wave 3: Advanced Skeletonization & Soil Leaching (8–25+ Days)* &bull; Proliferation of environmental saprophytes and soil actinomycetes (*Pseudomonas fluorescens*, *Bacillus subtilis*, *Streptomyces albus*).
+- **Minimalist Dispatch Footer:** Streamlined platform navigation, jurisdiction notifications, and research advisories.
 
-### 2. Machine Learning & Uncertainty Estimation
-- **Non-linear Succession Modeling:** Employs tuned Random Forest and XGBoost regressors optimized to capture multi-phase microbial shifts.
-- **Quantile Confidence Intervals:** Generates lower (10th percentile), median (50th percentile), and upper (90th percentile) intervals rather than a single point estimate, explicitly capturing real-world uncertainty.
-- **Model Evaluation:** Benchmarks error metrics (MAE, RMSE) alongside empirical coverage probabilities.
-
-### 3. Interactive Dashboard & Forensic Reporting
-- **Streamlit Interface:** Step-by-step workflow spanning data ingestion, QC inspection, regression inference, and succession visualization.
-- **Succession Analytics:** Dynamic Plotly decay and proliferation curves highlighting dominant bioindicator taxa.
-- **Case Reporting:** Generates downloadable, structured forensic reports detailing sample metadata, environmental context, predicted interval bounds, and quality audit trails.
+### View 2: Medical Examiner Diagnostic Triage Suite (`?view=examination`)
+- **Step 01 &bull; Autopsy Particulars:** Standard case registry inputs (PM Report Number, Police Station, Inquest Reference, Deceased Demographics, Ambient Temperatures, Specimen Swab Anatomical Sites).
+- **Step 02 &bull; Morphological Observation Matrix:** Interactive forensic triage correlating macroscopic postmortem findings (corneal clouding, algor status, venous marbling, abdominal bloating, purge fluid) with estimated physiological decay windows.
+- **Step 03 &bull; Bioindicator Image Viewports:** 19 dedicated clinical photographic viewports featuring real microscopy JPEG assets, optical viewfinder reticles, Gram-stain classifications, and biochemical mechanism breakdowns.
+- **Step 04 &bull; Medico-Legal Dossier Synthesis:** Real-time on-screen preview of **Form PM-5372** and one-click export of courtroom-ready legal PDF documents.
 
 ---
 
-## Project Structure
+## Repository Structure
 
 ```text
-necrotrace/
+NecroTrace/
 ├── .env.example                       # Environment configuration template
-├── .gitignore                          # Standard git ignore rules
+├── .gitignore                          # Git ignore rules
+├── .streamlit/
+│   └── config.toml                    # Production server settings & darkroom theme
 ├── LICENSE                             # MIT license terms
-├── README.md                           # Project documentation
+├── README.md                           # Comprehensive platform documentation
 ├── requirements.txt                    # Python package dependencies
-├── setup.py                            # Package installation script
+│
+├── app.py                              # Primary Streamlit application entrypoint
+├── app/
+│   ├── app.py                          # Synchronized secondary application entrypoint
+│   └── assets/                         # Mirrored production assets
+│
+├── artifacts/                          # Serialized pipeline assets
+│   ├── feature_schema.joblib           # Pre-trained 16S rRNA taxonomic feature schema
+│   ├── xgb_p10.joblib                  # Quantile XGBoost regressor (10th percentile bound)
+│   ├── xgb_p50.joblib                  # Quantile XGBoost regressor (median estimate)
+│   ├── xgb_p90.joblib                  # Quantile XGBoost regressor (90th percentile bound)
+│   ├── sample_forensic_report.pdf      # Sample Form PM-5372 legal dossier
+│   └── triage_test_report.pdf          # Triage validation test output
+│
+├── assets/                             # Platform design & biological assets
+│   ├── favicon.png                     # 64x64 browser tab icon
+│   ├── logo.png                        # High-resolution master logo (733x510)
+│   ├── logo_transparent.png            # Transparent alpha logo
+│   ├── logo_icon.png                   # Bio-geometric rosette emblem (360x360)
+│   ├── logo_icon_128.png               # Web-optimized 128px inline base64 icon
+│   ├── logo_horizontal.png             # Horizontal logo lockup
+│   ├── logo_text.png                   # Isolated geometric typography wordmark
+│   └── microbes/                       # 19 authentic scientific microscopy JPEGs
+│       ├── Acinetobacter baumannii.jpg
+│       ├── Bacillus subtilis.jpg
+│       ├── Bacteroides fragilis.jpg
+│       ├── Clostridium perfringens.jpg
+│       ├── Corynebacterium striatum.jpg
+│       ├── Cutibacterium acnes.jpg
+│       ├── Enterococcus faecalis.jpg
+│       ├── Ignatzschineria larvae.jpg
+│       ├── Micrococcus luteus.jpg
+│       ├── Morganella morganii.jpg
+│       ├── Planococcus halocryophilus.jpg
+│       ├── Proteus mirabilis.jpg
+│       ├── Pseudomonas fluorescens.jpg
+│       ├── Rothia dentocariosa.jpg
+│       ├── Sphingobacterium multivorum.jpg
+│       ├── Staphylococcus epidermidis.jpg
+│       ├── Streptococcus oralis.jpg
+│       ├── Streptomyces albus.jpg
+│       └── Wohlfahrtiimonas chitiniclastica.jpg
+│
+├── components/                         # React / Tailwind / shadcn design system
+│   ├── demo.tsx                        # React showcase wrapper
+│   └── ui/
+│       ├── button.tsx                  # shadcn CVA Button primitive
+│       ├── footer-04.tsx               # Minimalist Next.js footer component
+│       ├── input.tsx                   # shadcn Input primitive
+│       ├── kinetic-grid.tsx            # Canvas kinetic grid hero component
+│       └── separator.tsx               # Radix UI Separator primitive
 │
 ├── data/                               # Data management
-│   ├── raw/                            # Raw count tables, OTU/ASV matrices
-│   ├── processed/                      # Quality-filtered and normalized matrices
-│   ├── metadata/                       # Sample records (temperature, soil, true PMI)
-│   └── synthetic/                      # Simulated succession datasets for validation
+│   ├── metadata.csv                    # Specimen records and environmental context
+│   └── synthetic_counts.csv            # Synthetic taxonomic abundance matrices
 │
-├── notebooks/                          # Research & exploration
-│   ├── 01_eda_microbial_decay.ipynb    # Succession patterns and diversity trends
-│   └── 02_model_benchmarking.ipynb     # Model comparison and error benchmarking
+├── lib/                                # Frontend utility libraries
+│   └── utils.ts                        # Tailwind class merging utility (`clsx` + `twMerge`)
 │
-├── src/                                # Core library
-│   ├── preprocessing/                  # QC, filtering, and normalization
-│   │   ├── filters.py                  # Read-depth cutoffs and taxa pruning
-│   │   ├── normalizer.py               # TSS, CSS, and CLR transformations
-│   │   └── feature_engineering.py      # Diversity indices and succession ratios
-│   │
-│   ├── models/                         # Regression and uncertainty estimation
-│   │   ├── train.py                    # Cross-validated model training loop
-│   │   ├── evaluate.py                 # MAE, RMSE, and coverage metrics
-│   │   ├── baseline.py                 # Random Forest baseline regressor
-│   │   ├── xgboost_regressor.py        # Tuned XGBoost regressor
-│   │   └── uncertainty.py              # Quantile interval regressors
-│   │
-│   ├── visualization/                  # Chart generation
-│   │   ├── decay_curves.py             # Microbial succession curves over time
-│   │   └── pmi_intervals.py            # Probabilistic interval plots
-│   │
-│   └── reporting/                      # Forensic reporting
-│       ├── pdf_generator.py            # ReportLab summary export engine
-│       └── templates/                  # Document templates
+├── scripts/                            # Synthesis and training utilities
+│   └── make_data.py                    # Pipeline dataset synthesizer
 │
-├── artifacts/                          # Serialized pipeline assets (git-ignored)
-│   ├── models/                         # Trained model binaries (.joblib)
-│   └── preprocessors/                  # Saved feature scalers and taxon lists
-│
-├── app/                                # Streamlit web application
-│   ├── app.py                          # Application entry point
-│   ├── config.py                       # Theme, layout, and path constants
-│   └── pages/                          # Multi-page dashboard
-│       ├── 1_Upload_&_Process.py       # File ingestion and bioinformatic QC
-│       ├── 2_PMI_Prediction.py         # Regression estimates and uncertainty
-│       ├── 3_Taxa_Succession.py        # Interactive decay plots (Plotly)
-│       └── 4_Case_Report.py            # Case summary and PDF export
-│
-└── tests/                              # Automated test suite
-    ├── test_preprocessing.py           # Unit tests for filtering and normalization
-    └── test_inference.py               # Unit tests for model prediction pipeline
+└── src/                                # Core computational backend
+    ├── __init__.py
+    ├── pipeline.py                     # Quantile XGBoost inference & CLR transformation
+    ├── report.py                       # Case report structuring utilities
+    ├── triage.py                       # Bioindicator catalog & morphological rule engine
+    └── reporting/
+        ├── __init__.py
+        └── pdf_generator.py            # ReportLab Form PM-5372 court export engine
 ```
 
 ---
 
 ## Methodological Summary
 
-### 1. Relative Abundance & Total Sum Scaling (TSS)
-For a count matrix $X$ where $x_{ij}$ represents the observed read count of taxon $j$ in sample $i$:
+### 1. Compositional Normalization (TSS & CLR)
+Metagenomic sequencing count matrices $X$ reside in a simplex where total read depth is an arbitrary technical artifact. To address compositionality:
 
 $$TSS(x_{ij}) = \frac{x_{ij}}{\sum_{k=1}^{p} x_{ik}}$$
 
-### 2. Centered Log-Ratio (CLR) Transformation
-To remove the unit-sum constraint inherent in compositional data:
+To map simplex compositions into unconstrained Euclidean space for gradient boosting:
 
 $$CLR(x_i) = \left[ \ln\frac{x_{i1}}{g(x_i)}, \ln\frac{x_{i2}}{g(x_i)}, \dots, \ln\frac{x_{ip}}{g(x_i)} \right]$$
 
-where $g(x_i) = \left(\prod_{j=1}^{p} x_{ij}\right)^{1/p}$ is the geometric mean of abundances for sample $i$.
+where $g(x_i) = \left(\prod_{j=1}^{p} x_{ij}\right)^{1/p}$ is the geometric mean of observed taxa in sample $i$.
 
-### 3. Quantile Loss Function
-For quantile $\alpha \in (0, 1)$, the pinball loss minimizes asymmetric residuals to output bounds:
+### 2. Pinball Quantile Loss Formulation
+Rather than minimizing squared errors (which yields conditional means vulnerable to skewed biological variance), the engine optimizes asymmetric pinball loss for quantile $\alpha \in \{0.10, 0.50, 0.90\}$:
 
 $$\mathcal{L}_\alpha(y, \hat{y}) = \max(\alpha (y - \hat{y}), (1 - \alpha)(\hat{y} - y))$$
 
-This provides empirical 10th and 90th percentile bounds, bounding the estimated PMI with an 80% confidence interval.
+This guarantees that:
+- $\hat{y}_{0.10}$: 10% lower bound (earliest probable time of death)
+- $\hat{y}_{0.50}$: Median point estimate
+- $\hat{y}_{0.90}$: 90% upper bound (latest probable time of death)
+- Interval $[\hat{y}_{0.10}, \hat{y}_{0.90}]$ provides an empirical 80% confidence window satisfying courtroom standards.
 
 ---
 
+## Quickstart & Local Installation
 
+### Prerequisites
+- Python 3.10, 3.11, or 3.12
+- Git
+
+### Installation Steps
+
+1. **Clone the Repository:**
+   ```bash
+   git clone https://github.com/BroomWroom/NecroTrace.git
+   cd NecroTrace
+   ```
+
+2. **Create and Activate a Virtual Environment:**
+   ```bash
+   # Windows (PowerShell)
+   python -m venv venv
+   .\venv\Scripts\Activate.ps1
+
+   # macOS / Linux
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+
+3. **Install Dependencies:**
+   ```bash
+   pip install --upgrade pip
+   pip install -r requirements.txt
+   ```
+
+4. **Launch the Application:**
+   ```bash
+   streamlit run app.py
+   ```
+   Open your browser to `http://localhost:8501`.
+
+---
+
+## Cloud Deployment Guide
+
+### Deploy to Streamlit Community Cloud (Recommended — 100% Free)
+1. Push your repository to GitHub:
+   ```bash
+   git add .
+   git commit -m "Update NecroTrace platform"
+   git push origin main
+   ```
+2. Navigate to [share.streamlit.io](https://share.streamlit.io/) and connect your GitHub account.
+3. Select:
+   - **Repository:** `BroomWroom/NecroTrace`
+   - **Branch:** `main`
+   - **Main file path:** `app.py`
+4. Click **Deploy!** The pre-configured `.streamlit/config.toml` will automatically configure the darkroom theme and server parameters.
+
+### Deploy to Render / Railway
+- **Build Command:** `pip install -r requirements.txt`
+- **Start Command:** `streamlit run app.py --server.port $PORT --server.address 0.0.0.0`
+
+---
+
+## Evidentiary Standards & Legal Compliance
+
+NecroTrace was architected to satisfy judicial evidentiary standards for scientific expert testimony (e.g., *Daubert v. Merrell Dow Pharmaceuticals, Inc.* and *Frye v. United States*):
+- **Known Error Rates:** Quantile uncertainty bounds explicitly report empirical coverage and confidence intervals.
+- **Standardized Protocols:** Form PM-5372 integrates clinical specimen collection sites, DNA adequacy clearance, and institutional registration numbers.
+- **Cryptographic Auditability:** Every exported PDF includes a SHA-256 checksum generated over the specimen particulars and estimated intervals.
+
+---
+
+## Team & Attribution
+
+**NecroTrace** was developed by **Team BroomWroom** for **VMedithon 3.0** (Healthcare & Metagenomics Track) at the **Vellore Institute of Technology (VIT), Chennai**.
+
+- **Lead Investigator:** Tanish Walture ([tanishwalture@gmail.com](mailto:tanishwalture@gmail.com))
+- **Repository:** [github.com/BroomWroom/NecroTrace](https://github.com/BroomWroom/NecroTrace)
+- **Institutional Host:** VIT Chennai &bull; VMedithon 3.0
+
+---
 
 ## License
 
