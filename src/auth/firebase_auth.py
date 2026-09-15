@@ -59,30 +59,25 @@ def clear_active_officer_session():
     _ACTIVE_SERVER_SESSION.clear()
 
 
-# Official NecroTrace Live Firebase & Firestore Project Credentials
-DEFAULT_FIREBASE_PROJECT_ID = "necrotrace"
-DEFAULT_FIREBASE_WEB_API_KEY = "AIzaSyALDwaUmf8lagVqxNNzyguvUPNme1BKBfE"
-
-
 def get_firebase_config() -> Dict[str, str]:
     """
-    Retrieve Firebase Web API credentials safely from Streamlit secrets, environment,
-    or production project defaults. Never raises an exception if secrets are missing.
+    Retrieve Firebase Web API credentials strictly from Streamlit secrets (.streamlit/secrets.toml)
+    or environment variables. Does NOT hardcode credentials in source files.
     """
     api_key = ""
     project_id = ""
 
-    # 1. Try reading from streamlit.secrets if running inside Streamlit
+    # 1. Read from streamlit.secrets if running inside Streamlit
     try:
         import streamlit as st
         if hasattr(st, "secrets"):
-            # Direct flat keys
+            # Direct flat keys in secrets.toml (e.g. FIREBASE_WEB_API_KEY = "...")
             for k in ["FIREBASE_WEB_API_KEY", "firebase_web_api_key", "FIREBASE_API_KEY", "firebase_api_key", "apiKey", "API_KEY"]:
                 if k in st.secrets and str(st.secrets[k]).strip():
                     api_key = str(st.secrets[k]).strip().strip('"').strip("'")
                     break
 
-            # Nested sections (e.g. [firebase] or [credentials])
+            # Nested sections in secrets.toml (e.g. [firebase] web_api_key = "...")
             for sec in ["firebase", "FIREBASE", "credentials", "default"]:
                 if not api_key and sec in st.secrets and isinstance(st.secrets[sec], (dict, st.runtime.secrets.Secrets)):
                     sub = st.secrets[sec]
@@ -121,7 +116,7 @@ def get_firebase_config() -> Dict[str, str]:
                 project_id = val
                 break
 
-    # 3. Direct inspection of local .streamlit/secrets.toml if file exists
+    # 3. Direct inspection of local .streamlit/secrets.toml file if running standalone / script
     if not api_key or not project_id:
         try:
             sec_file = os.path.join(os.getcwd(), ".streamlit", "secrets.toml")
@@ -138,12 +133,6 @@ def get_firebase_config() -> Dict[str, str]:
                                 project_id = v_clean
         except Exception:
             pass
-
-    # 4. Production Default Fallback (ensures hosted app ALWAYS writes to live Firestore)
-    if not api_key:
-        api_key = DEFAULT_FIREBASE_WEB_API_KEY
-    if not project_id:
-        project_id = DEFAULT_FIREBASE_PROJECT_ID
 
     return {
         "api_key": api_key,
