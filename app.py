@@ -49,6 +49,7 @@ except (ImportError, AttributeError):
             generate_forensic_pdf,
             compute_sha256_hash,
         )
+
         def generate_qr_code_svg(payload: str, size: float = 130.0) -> str:
             """Self-contained fallback SVG QR generator ensuring zero-crash resilience."""
             from reportlab.graphics.barcode import qr
@@ -68,42 +69,30 @@ except (ImportError, AttributeError):
 # -----------------------------------------------------------------------------
 # AUTHENTICATION & FIREBASE GATEWAY
 # -----------------------------------------------------------------------------
-try:
-    from src.auth import (
-        get_firebase_config,
-        is_firebase_configured,
-        check_email_registered_in_firebase,
-        sign_in_officer,
-        register_officer,
-        generate_release_passcode,
-        verify_release_passcode,
-        save_firebase_config,
-        test_firebase_connection,
-        DEMO_REGISTERED_OFFICERS,
-    )
-except (ImportError, AttributeError):
-    for mod_name in list(sys.modules.keys()):
-        if mod_name.startswith("src.auth"):
-            sys.modules.pop(mod_name, None)
-    from src.auth import (
-        get_firebase_config,
-        is_firebase_configured,
-        check_email_registered_in_firebase,
-        sign_in_officer,
-        register_officer,
-        generate_release_passcode,
-        verify_release_passcode,
-        save_firebase_config,
-        test_firebase_connection,
-        DEMO_REGISTERED_OFFICERS,
-    )
+for mod_name in list(sys.modules.keys()):
+    if mod_name.startswith("src.auth"):
+        sys.modules.pop(mod_name, None)
+
+from src.auth import (
+    get_firebase_config,
+    is_firebase_configured,
+    check_email_registered_in_firebase,
+    sign_in_officer,
+    register_officer,
+    generate_release_passcode,
+    verify_release_passcode,
+    save_firebase_config,
+    test_firebase_connection,
+    DEMO_REGISTERED_OFFICERS,
+)
 
 # -----------------------------------------------------------------------------
 # 1. PAGE CONFIGURATION
 # -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="NecroTrace // Forensic Metagenomics",
-    page_icon="assets/favicon.png" if os.path.exists("assets/favicon.png") else "assets/logo_icon.png",
+    page_icon="assets/favicon.png" if os.path.exists(
+        "assets/favicon.png") else "assets/logo_icon.png",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -113,6 +102,12 @@ st.set_page_config(
 # -----------------------------------------------------------------------------
 # Handle query parameters for view routing if present
 query_view = st.query_params.get("view", None)
+if query_view == "logout":
+    st.session_state["authenticated_officer"] = None
+    st.query_params.clear()
+    st.session_state["view"] = "landing"
+    st.rerun()
+
 VALID_VIEWS = ["landing", "examination", "verify"]
 if "view" not in st.session_state:
     st.session_state["view"] = query_view if query_view in VALID_VIEWS else "landing"
@@ -161,6 +156,24 @@ def _load_logo_b64() -> str:
 
 
 LOGO_ICON_B64 = _load_logo_b64()
+
+
+def _load_logo_horizontal_b64() -> str:
+    import base64
+    candidates = [
+        os.path.join(os.path.dirname(__file__),
+                     "assets", "logo_horizontal.png"),
+        os.path.join("assets", "logo_horizontal.png"),
+        os.path.join("app", "assets", "logo_horizontal.png"),
+    ]
+    for p in candidates:
+        if os.path.exists(p):
+            with open(p, "rb") as f:
+                return f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+    return ""
+
+
+LOGO_HORIZONTAL_B64 = _load_logo_horizontal_b64()
 
 
 # -----------------------------------------------------------------------------
@@ -248,11 +261,7 @@ GLOBAL_CSS = """
     }
 
     .signal-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 9999px;
-        background-color: var(--color-bioluminescent-lime);
-        display: inline-block;
+        display: none !important;
     }
 
     /* Hero typography */
@@ -726,12 +735,15 @@ def get_microbe_card_banner(taxon_id: str, common_name: str, morphology_type: st
         os.path.join("assets", "microbes", f"{taxon_id}.jpg"),
         os.path.join("assets", "microbes", f"{taxon_id}.jpeg"),
         os.path.join("assets", "microbes", f"{taxon_id}.png"),
-        os.path.join("assets", "microbes", f"{taxon_id.replace('_', ' ')}.jpg"),
-        os.path.join("assets", "microbes", f"{taxon_id.replace('_', ' ')}.jpeg"),
+        os.path.join("assets", "microbes",
+                     f"{taxon_id.replace('_', ' ')}.jpg"),
+        os.path.join("assets", "microbes",
+                     f"{taxon_id.replace('_', ' ')}.jpeg"),
         os.path.join("assets", "microbes", f"{common_name}.jpg"),
         os.path.join("assets", "microbes", f"{common_name}.jpeg"),
         os.path.join("app", "assets", "microbes", f"{taxon_id}.jpg"),
-        os.path.join("app", "assets", "microbes", f"{taxon_id.replace('_', ' ')}.jpg"),
+        os.path.join("app", "assets", "microbes",
+                     f"{taxon_id.replace('_', ' ')}.jpg"),
         os.path.join("app", "assets", "microbes", f"{common_name}.jpg"),
     ]
     found_asset = None
@@ -744,7 +756,8 @@ def get_microbe_card_banner(taxon_id: str, common_name: str, morphology_type: st
         try:
             with open(found_asset, "rb") as img_file:
                 b64 = base64.b64encode(img_file.read()).decode("utf-8")
-            mime = "image/png" if found_asset.endswith(".png") else "image/jpeg"
+            mime = "image/png" if found_asset.endswith(
+                ".png") else "image/jpeg"
             return f'''<div style="width: 100%; height: 230px; position: relative; overflow: hidden; background: #0c1213; border-bottom: 1px solid #283637;">
                 <!-- Real Microscopy JPEG Image -->
                 <img src="data:{mime};base64,{b64}" style="width: 100%; height: 100%; object-fit: cover; display: block; filter: brightness(0.96) contrast(1.05);" alt="{common_name}" />
@@ -760,7 +773,7 @@ def get_microbe_card_banner(taxon_id: str, common_name: str, morphology_type: st
                 
                 <!-- Top Status Badge -->
                 <div style="position: absolute; top: 10px; right: 12px; background: rgba(8, 14, 15, 0.85); border: 1px solid rgba(77, 87, 87, 0.6); padding: 3px 8px; border-radius: 4px; font-family: var(--font-mono); font-size: 9px; color: #cef79e; letter-spacing: 0.05em; backdrop-filter: blur(4px);">
-                    ● SPECIMEN VERIFIED
+                    SPECIMEN VERIFIED
                 </div>
             </div>'''
         except Exception:
@@ -807,6 +820,7 @@ def get_microbe_card_banner(taxon_id: str, common_name: str, morphology_type: st
         </svg>
     </div>'''
 
+
 @st.cache_resource
 def load_trained_pipeline(artifacts_dir: str = "artifacts"):
     """Load serialized Quantile XGBoost models and feature schema."""
@@ -818,6 +832,213 @@ def load_trained_pipeline(artifacts_dir: str = "artifacts"):
 
 
 model, err = load_trained_pipeline()
+
+
+# =============================================================================
+# PRE-LANDING AUTHENTICATION & EXAMINER ENROLLMENT GATE
+# =============================================================================
+if not st.session_state.get("authenticated_officer") and st.session_state.get("view") != "verify":
+    render_clean_html("""
+    <style>
+    div[data-testid="stAppViewContainer"] > section.main,
+    div[data-testid="stAppViewContainer"] .stMain {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+    }
+    div[data-testid="stMainBlockContainer"],
+    div[data-testid="stAppViewBlockContainer"],
+    .main .block-container,
+    .stMainBlockContainer,
+    .block-container {
+        max-width: 620px !important;
+        width: 100% !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-top: 56px !important;
+        padding-bottom: 64px !important;
+        padding-left: 20px !important;
+        padding-right: 20px !important;
+        box-sizing: border-box !important;
+    }
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        border: 1px solid #364547 !important;
+        border-radius: 14px !important;
+        background: rgba(26, 36, 37, 0.75) !important;
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45) !important;
+        padding: 28px 32px !important;
+    }
+    div[data-baseweb="input"] {
+        background-color: #141f20 !important;
+        border: 1px solid #334244 !important;
+        border-radius: 6px !important;
+    }
+    div[data-baseweb="input"]:focus-within {
+        border-color: var(--color-bioluminescent-lime) !important;
+    }
+    div[data-baseweb="input"] input {
+        color: #ffffff !important;
+        font-family: var(--font-mono) !important;
+        font-size: 13px !important;
+    }
+    div[data-baseweb="select"] > div {
+        background-color: #141f20 !important;
+        border: 1px solid #334244 !important;
+        border-radius: 6px !important;
+        color: #ffffff !important;
+        font-family: var(--font-mono) !important;
+        font-size: 13px !important;
+    }
+    div[data-testid="stWidgetLabel"] label,
+    div[data-testid="stWidgetLabel"] p {
+        color: #c9cbbe !important;
+        font-size: 12px !important;
+        font-weight: 500 !important;
+        letter-spacing: 0.03em !important;
+        font-family: var(--font-mono) !important;
+    }
+    </style>
+    """)
+
+    fb_active = is_firebase_configured()
+    gate_logo = LOGO_HORIZONTAL_B64 if LOGO_HORIZONTAL_B64 else LOGO_ICON_B64
+
+    render_clean_html(f"""
+    <div style="text-align: center; margin-bottom: 28px; padding-top: 10px;">
+        <img src="{gate_logo}" style="max-width: 320px; width: 100%; height: auto; object-fit: contain; display: inline-block; filter: drop-shadow(0 0 20px rgba(116, 194, 92, 0.25));" alt="NecroTrace Logo" />
+    </div>
+    """)
+
+    with st.container(border=True):
+        auth_tab_in, auth_tab_up = st.tabs([
+            "Examiner Sign-In",
+            "Enroll New Examiner",
+        ])
+
+        with auth_tab_in:
+            st.markdown(
+                '<div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-graphite); margin-bottom: 12px; letter-spacing: 0.04em;">ENTER REGISTERED CREDENTIALS</div>',
+                unsafe_allow_html=True
+            )
+            login_email = st.text_input(
+                "Departmental / Institutional Email",
+                placeholder="e.g. examiner@forensic.gov",
+                key="gate_login_email"
+            )
+            login_pass = st.text_input(
+                "Security Passcode",
+                type="password",
+                placeholder="••••••••",
+                key="gate_login_password"
+            )
+
+            if st.button("AUTHENTICATE & ENTER SYSTEM", use_container_width=True, key="btn_gate_signin"):
+                if not login_email or not login_pass:
+                    st.warning(
+                        "Please provide both registered email and password.")
+                else:
+                    with st.spinner("Authenticating against Firebase Directory..."):
+                        auth_res = sign_in_officer(login_email, login_pass)
+                    if auth_res.get("success"):
+                        st.session_state["authenticated_officer"] = auth_res.get(
+                            "officer_info")
+                        st.session_state["view"] = "landing"
+                        st.success(
+                            f"Identity Verified. Welcome, {auth_res.get('officer_info', {}).get('name')}.")
+                        st.rerun()
+                    else:
+                        st.error(auth_res.get('message'))
+
+            if not fb_active:
+                st.markdown(
+                    '<hr class="hairline-dark" style="margin: 18px 0 12px 0;">', unsafe_allow_html=True)
+                st.markdown(
+                    '<div style="font-size: 11px; color: #8892b0; font-family: var(--font-mono);">'
+                    '<b>Evaluation Sandbox Credentials</b>:<br>'
+                    '&bull; <code>coroner@necrotrace.gov</code> / <code>necrotrace2026</code> (Dr. Tanish Walture)<br>'
+                    '&bull; <code>examiner@police.gov</code> / <code>investigation</code> (Insp. V. K. Sharma)'
+                    '</div>',
+                    unsafe_allow_html=True
+                )
+
+        with auth_tab_up:
+            st.markdown(
+                '<div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-graphite); margin-bottom: 12px; letter-spacing: 0.04em;">ENROLL EXAMINER PROFILE</div>',
+                unsafe_allow_html=True
+            )
+            reg_c1, reg_c2 = st.columns(2)
+            with reg_c1:
+                reg_name = st.text_input(
+                    "Full Legal Name & Title", placeholder="e.g. Dr. Sarah Jenkins, M.D.", key="gate_reg_name")
+                reg_station = st.text_input(
+                    "Police Station / Forensic Lab", placeholder="e.g. State Forensic Science Lab", key="gate_reg_station")
+            with reg_c2:
+                reg_badge = st.text_input(
+                    "Badge / Registration No.", placeholder="e.g. MED-9042 / WBMC-45826", key="gate_reg_badge")
+                reg_role = st.selectbox(
+                    "Professional Medico-Legal Role",
+                    [
+                        "Forensic Pathologist",
+                        "Chief Medical Examiner",
+                        "Senior Investigating Officer",
+                        "Forensic Anthropologist",
+                        "Toxicology Specialist",
+                        "Judicial Inquest Officer",
+                    ],
+                    index=0,
+                    key="gate_reg_role"
+                )
+
+            reg_email = st.text_input(
+                "Official Departmental Email", placeholder="e.g. s.jenkins@forensics.gov", key="gate_reg_email")
+
+            reg_p1, reg_p2 = st.columns(2)
+            with reg_p1:
+                reg_pass = st.text_input(
+                    "Security Passcode (min 6 chars)", type="password", key="gate_reg_pass")
+            with reg_p2:
+                reg_pass_conf = st.text_input(
+                    "Confirm Passcode", type="password", key="gate_reg_pass_conf")
+
+            if st.button("ENROLL EXAMINER", use_container_width=True, key="btn_gate_enroll"):
+                if not reg_email or not reg_pass or not reg_name:
+                    st.warning("Please provide Name, Email, and Passcode.")
+                elif len(reg_pass) < 6:
+                    st.error("Passcode must be at least 6 characters long.")
+                elif reg_pass != reg_pass_conf:
+                    st.error("Passcodes do not match.")
+                else:
+                    with st.spinner("Writing officer profile to Database..."):
+                        reg_res = register_officer(
+                            email=reg_email,
+                            password=reg_pass,
+                            full_name=reg_name,
+                            name=reg_name,
+                            badge=reg_badge,
+                            station=reg_station,
+                            role=reg_role,
+                        )
+                    if reg_res.get("success"):
+                        st.session_state["authenticated_officer"] = reg_res.get(
+                            "officer_info")
+                        st.session_state["view"] = "landing"
+                        st.success(
+                            f"Examiner {reg_name} successfully enrolled. Launching platform...")
+                        st.rerun()
+                    else:
+                        st.error(
+                            f"Enrollment failed: {reg_res.get('message')}")
+
+        st.markdown("""
+        <div style="text-align: center; margin-top: 24px; padding-top: 14px; border-top: 1px solid rgba(77, 87, 87, 0.25); font-family: var(--font-mono); font-size: 10px; color: var(--color-graphite); letter-spacing: 0.05em;">
+            ISO/IEC 17025 ACCREDITED FORENSIC SERVICE &bull; 21 CFR PART 11 DIGITAL SIGNATURES &bull; ENCRYPTED METAGENOMIC PIPELINE
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.stop()
 
 
 # =============================================================================
@@ -854,6 +1075,16 @@ if st.session_state["view"] == "landing":
     """)
 
     # --- SECTION 01: FULL-VIEWPORT HERO SECTION WITH KINETIC GRID & FLOATING NAV ---
+    cur_officer = st.session_state.get("authenticated_officer") or {}
+    officer_name_short = cur_officer.get("name", "Examiner")
+    officer_badge_short = cur_officer.get("badge", "CFS")
+    officer_nav_pill = f"""
+    <span style="font-family: var(--font-mono); font-size: 11px; color: #6ee7b7; background: rgba(6, 78, 59, 0.55); border: 1px solid #10b981; padding: 5px 11px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px;">
+        {officer_name_short} ({officer_badge_short})
+    </span>
+    <a href="?view=logout" target="_self" style="font-family: var(--font-mono); font-size: 11px; color: #fca5a5; text-decoration: none; border: 1px solid rgba(239, 68, 68, 0.4); padding: 5px 11px; border-radius: 6px; background: rgba(239, 68, 68, 0.08); transition: all 0.15s ease;">LOG OUT</a>
+    """
+
     hero_markup = f"""
     <div id="kinetic-hero-container" style="position: relative; width: 100%; min-height: 100vh; overflow: hidden; background-color: var(--color-abyssal-ink); cursor: crosshair; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
         <canvas id="kinetic-grid-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none;"></canvas>
@@ -867,10 +1098,11 @@ if st.session_state["view"] == "landing":
                         NECROTRACE
                     </span>
                 </div>
-                <div style="display: flex; align-items: center; gap: 24px;">
+                <div style="display: flex; align-items: center; gap: 20px;">
                     <a href="#platform" style="font-family: var(--font-mono); font-size: 13px; color: var(--color-graphite); text-decoration: none; transition: color 0.15s ease;">01 PLATFORM</a>
                     <a href="#succession" style="font-family: var(--font-mono); font-size: 13px; color: var(--color-graphite); text-decoration: none; transition: color 0.15s ease;">02 SUCCESSION</a>
                     <a href="#dossier" style="font-family: var(--font-mono); font-size: 13px; color: var(--color-graphite); text-decoration: none; transition: color 0.15s ease;">03 CASE DOSSIER</a>
+                    {officer_nav_pill}
                     <a href="?view=examination" target="_self" style="font-family: var(--font-mono); font-size: 12px; color: var(--color-paper); text-decoration: none; border: 1px solid var(--color-graphite); padding: 8px 16px; border-radius: 6px; letter-spacing: -0.02em; background: rgba(255, 255, 255, 0.03); transition: all 0.15s ease;">EXAMINATION ROOM &rarr;</a>
                 </div>
             </div>
@@ -879,7 +1111,6 @@ if st.session_state["view"] == "landing":
         <!-- Main Hero Body (Centered in visible viewport) -->
         <div style="position: relative; z-index: 10; width: 100%; max-width: 1300px; margin: 0 auto; padding: 48px 48px 64px 48px; box-sizing: border-box; flex: 1; display: flex; flex-direction: column; justify-content: center; pointer-events: auto;">
             <div class="section-counter" style="backdrop-filter: blur(8px); background: rgba(34, 47, 48, 0.75); width: fit-content; margin-bottom: 24px;">
-                <span class="signal-dot"></span>
                 01 / FORENSIC METAGENOMICS
             </div>
             <h1 class="hero-title" style="text-shadow: 0 2px 24px rgba(0,0,0,0.65);">The microbial clock of human decomposition.</h1>
@@ -1231,7 +1462,6 @@ if st.session_state["view"] == "landing":
     <div id="succession" style="background-color: var(--color-bone-white); color: var(--color-abyssal-ink); padding: 100px 40px; margin-top: 40px;">
         <div style="max-width: 1200px; margin: 0 auto;">
             <div class="section-counter" style="border-color: var(--color-graphite); color: var(--color-graphite);">
-                <span class="signal-dot"></span>
                 03 / SUCCESSION DYNAMICS
             </div>
             <div style="font-size: 42px; line-height: 1.15; letter-spacing: -0.01em; color: var(--color-abyssal-ink); margin-bottom: 16px;">
@@ -1290,7 +1520,6 @@ if st.session_state["view"] == "landing":
     <div id="dossier" style="background-color: var(--color-void); padding: 100px 40px 80px 40px; border-top: 1px solid #1a2223;">
         <div style="max-width: 1200px; margin: 0 auto;">
             <div class="section-counter" style="border-color: #333333; color: #888888;">
-                <span class="signal-dot"></span>
                 04 / MEDICO-LEGAL INTEGRATION
             </div>
             
@@ -1381,7 +1610,7 @@ if st.session_state["view"] == "landing":
         </div>
     </div>
     """
-    )
+                      )
 
 
 # =============================================================================
@@ -1527,20 +1756,26 @@ elif st.session_state["view"] == "examination":
     """)
 
     # Top Navigation Bar in Examination View
+    cur_officer = st.session_state.get("authenticated_officer") or {}
+    officer_name_short = cur_officer.get("name", "Examiner")
+    officer_badge_short = cur_officer.get("badge", "CFS")
     nav_exam_html = f"""
     <header style="width: 100%; border-bottom: 1px solid var(--color-graphite); padding: 12px 0 20px 0; margin-bottom: 28px;">
-        <div style="display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
             <div style="display: flex; align-items: center; gap: 12px;">
                 <img src="{LOGO_ICON_B64}" style="height: 26px; width: 26px; object-fit: contain; vertical-align: middle; filter: drop-shadow(0 0 8px rgba(116, 194, 92, 0.35));" alt="NecroTrace Logo" />
                 <span style="font-family: var(--font-mono); font-size: 13px; color: var(--color-paper); font-weight: 600; letter-spacing: 0.04em;">
                     NECROTRACE <span style="color: var(--color-graphite);">//</span> EXAMINATION ROOM
                 </span>
-                <span class="signal-dot"></span>
                 <span style="font-family: var(--font-mono); font-size: 11px; color: var(--color-bioluminescent-lime); letter-spacing: 0.03em;">
                     CLINICAL TRIAGE ACTIVE
                 </span>
             </div>
-            <div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-family: var(--font-mono); font-size: 11px; color: #6ee7b7; background: rgba(6, 78, 59, 0.55); border: 1px solid #10b981; padding: 5px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px;">
+                    {officer_name_short} ({officer_badge_short})
+                </span>
+                <a href="?view=logout" target="_self" style="font-family: var(--font-mono); font-size: 11px; color: #fca5a5; text-decoration: none; border: 1px solid rgba(239, 68, 68, 0.4); padding: 5px 10px; border-radius: 6px; background: rgba(239, 68, 68, 0.08); transition: all 0.15s ease;">LOG OUT</a>
                 <a href="?view=landing" target="_self" class="sober-btn-ghost" style="padding: 6px 16px; font-size: 11px; height: 34px; min-height: 34px; text-decoration: none;">&larr; RETURN TO PLATFORM OVERVIEW</a>
             </div>
         </div>
@@ -1564,37 +1799,53 @@ elif st.session_state["view"] == "examination":
     # STEP 1: PATIENT PARTICULARS & SCENE FACTORS
     # -------------------------------------------------------------
     with st.container(border=True):
-        st.markdown('<div class="section-counter" style="margin-bottom: 20px;">01 / PATIENT & SCENE PARTICULARS</div>', unsafe_allow_html=True)
-        
+        st.markdown(
+            '<div class="section-counter" style="margin-bottom: 20px;">01 / PATIENT & SCENE PARTICULARS</div>', unsafe_allow_html=True)
+
         col_p1, col_p2 = st.columns(2)
         with col_p1:
-            deceased_name = st.text_input("Name of Deceased / Ref:", value="Unidentified Individual (Ref: Unknown #42)")
-            age_val = st.text_input("Estimated Age:", value="Approx. 35 - 40 Years")
+            deceased_name = st.text_input(
+                "Name of Deceased / Ref:", value="Unidentified Individual (Ref: Unknown #42)")
+            age_val = st.text_input(
+                "Estimated Age:", value="Approx. 35 - 40 Years")
             height_val = st.text_input("Height (approx):", value="172 cm")
-            ambient_temp = st.slider("Scene Temperature (°C):", min_value=5.0, max_value=42.0, value=23.5, step=0.5)
+            ambient_temp = st.slider(
+                "Scene Temperature (°C):", min_value=5.0, max_value=42.0, value=23.5, step=0.5)
         with col_p2:
-            sex_val = st.selectbox("Sex:", ["Male", "Female", "Indeterminate / Skeletal"], index=0)
+            sex_val = st.selectbox(
+                "Sex:", ["Male", "Female", "Indeterminate / Skeletal"], index=0)
             swab_site = st.selectbox(
                 "Anatomical Swab Site:",
-                ["Oral Cavity / Mucosal Surface", "Nasal Mucosa", "Abdominal Surface", "Soil-Body Interface"],
+                ["Oral Cavity / Mucosal Surface", "Nasal Mucosa",
+                    "Abdominal Surface", "Soil-Body Interface"],
                 index=0,
             )
             weight_val = st.text_input("Weight (approx):", value="68 kg")
-            humidity_val = st.slider("Relative Humidity (%):", min_value=20.0, max_value=100.0, value=65.0, step=5.0)
+            humidity_val = st.slider(
+                "Relative Humidity (%):", min_value=20.0, max_value=100.0, value=65.0, step=5.0)
 
-        st.markdown('<hr class="hairline-dark" style="margin: 20px 0;">', unsafe_allow_html=True)
+        st.markdown(
+            '<hr class="hairline-dark" style="margin: 20px 0;">', unsafe_allow_html=True)
 
         # Administrative Medico-Legal Identifiers
         st.markdown('<div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-graphite); margin-bottom: 12px; letter-spacing: 0.05em; text-transform: uppercase;">ADMINISTRATIVE DOSSIER IDENTIFIERS</div>', unsafe_allow_html=True)
         col_m1, col_m2 = st.columns(2)
         with col_m1:
-            pm_report_no = st.text_input("Post Mortem Report No:", value="PM-619 / 2026")
-            police_station = st.text_input("Police Station (P.S.):", value="New Township P.S.")
+            pm_report_no = st.text_input(
+                "Post Mortem Report No:", value="PM-619 / 2026")
+            default_ps = cur_officer.get("station") if cur_officer.get(
+                "station") else "New Township P.S."
+            police_station = st.text_input(
+                "Police Station (P.S.):", value=default_ps)
         with col_m2:
             inquest_no = st.text_input("Inquest Number:", value="14 / 2026")
-            analyst_name = st.text_input("Examining Medical Officer:", value="Dr. Tanish Walture, M.D. (WBMC / 45826)")
+            default_officer = f"{cur_officer.get('name')} ({cur_officer.get('badge', 'EXAMINER')})" if cur_officer.get(
+                "name") else "Dr. Tanish Walture, M.D. (WBMC / 45826)"
+            analyst_name = st.text_input(
+                "Examining Medical Officer:", value=default_officer)
 
-        st.markdown('<hr class="hairline-dark" style="margin: 18px 0 14px 0;">', unsafe_allow_html=True)
+        st.markdown(
+            '<hr class="hairline-dark" style="margin: 18px 0 14px 0;">', unsafe_allow_html=True)
 
         # Provisional Autopsy Diagnoses & Inquest Findings
         st.markdown('<div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-graphite); margin-bottom: 12px; letter-spacing: 0.05em; text-transform: uppercase;">PROVISIONAL AUTOPSY DIAGNOSES & INQUEST CLASSIFICATION</div>', unsafe_allow_html=True)
@@ -1624,7 +1875,8 @@ elif st.session_state["view"] == "examination":
     # STEP 2: MORPHOLOGICAL SIGNS AUTOPSY INSPECTION (VISUAL PANELS)
     # -------------------------------------------------------------
     with st.container(border=True):
-        st.markdown('<div class="section-counter" style="margin-bottom: 16px;">02 / MORPHOLOGICAL SIGNS AUTOPSY INSPECTION</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="section-counter" style="margin-bottom: 16px;">02 / MORPHOLOGICAL SIGNS AUTOPSY INSPECTION</div>', unsafe_allow_html=True)
         st.markdown("""
         <div style="font-size: 14px; color: var(--color-graphite); margin-bottom: 22px; line-height: 1.45;">
             Record clinical postmortem decomposition signs. The succession engine aligns physical observations with microbial chronometers. Review the real-time visual inspection guides below for autopsy palpation checkpoints and physical appearance.
@@ -1635,11 +1887,14 @@ elif st.session_state["view"] == "examination":
         with st.container(border=True):
             r_col1, r_col2 = st.columns([1.05, 0.95])
             with r_col1:
-                st.markdown('<div style="font-size: 15px; font-weight: 500; color: var(--color-paper); margin-bottom: 4px;">1. Rigor Mortis Status</div>', unsafe_allow_html=True)
-                st.caption(MORPHOLOGICAL_SIGN_GUIDES["rigor_mortis"]["description"])
+                st.markdown(
+                    '<div style="font-size: 15px; font-weight: 500; color: var(--color-paper); margin-bottom: 4px;">1. Rigor Mortis Status</div>', unsafe_allow_html=True)
+                st.caption(
+                    MORPHOLOGICAL_SIGN_GUIDES["rigor_mortis"]["description"])
                 rigor_opt = st.radio(
                     "Rigor Mortis:",
-                    list(MORPHOLOGICAL_SIGN_GUIDES["rigor_mortis"]["stages"].keys()),
+                    list(
+                        MORPHOLOGICAL_SIGN_GUIDES["rigor_mortis"]["stages"].keys()),
                     index=3 if not st.session_state["triage_confirmed"] else 3,
                     label_visibility="collapsed",
                     key="radio_rigor",
@@ -1670,7 +1925,8 @@ elif st.session_state["view"] == "examination":
         with st.container(border=True):
             b_col1, b_col2 = st.columns([1.05, 0.95])
             with b_col1:
-                st.markdown('<div style="font-size: 15px; font-weight: 500; color: var(--color-paper); margin-bottom: 4px;">2. Abdominal Distension & Bloat</div>', unsafe_allow_html=True)
+                st.markdown(
+                    '<div style="font-size: 15px; font-weight: 500; color: var(--color-paper); margin-bottom: 4px;">2. Abdominal Distension & Bloat</div>', unsafe_allow_html=True)
                 st.caption(MORPHOLOGICAL_SIGN_GUIDES["bloat"]["description"])
                 bloat_opt = st.radio(
                     "Bloat State:",
@@ -1706,10 +1962,12 @@ elif st.session_state["view"] == "examination":
             d_col1, d_col2 = st.columns([1.05, 0.95])
             with d_col1:
                 st.markdown('<div style="font-size: 15px; font-weight: 500; color: var(--color-paper); margin-bottom: 4px;">3. Skin Discoloration & Vascular Marbling</div>', unsafe_allow_html=True)
-                st.caption(MORPHOLOGICAL_SIGN_GUIDES["discoloration"]["description"])
+                st.caption(
+                    MORPHOLOGICAL_SIGN_GUIDES["discoloration"]["description"])
                 discolor_opt = st.radio(
                     "Discoloration:",
-                    list(MORPHOLOGICAL_SIGN_GUIDES["discoloration"]["stages"].keys()),
+                    list(
+                        MORPHOLOGICAL_SIGN_GUIDES["discoloration"]["stages"].keys()),
                     index=2,
                     label_visibility="collapsed",
                     key="radio_discolor",
@@ -1740,11 +1998,14 @@ elif st.session_state["view"] == "examination":
         with st.container(border=True):
             pu_col1, pu_col2 = st.columns([1.05, 0.95])
             with pu_col1:
-                st.markdown('<div style="font-size: 15px; font-weight: 500; color: var(--color-paper); margin-bottom: 4px;">4. Purge Fluid & Natural Orifices</div>', unsafe_allow_html=True)
-                st.caption(MORPHOLOGICAL_SIGN_GUIDES["purge_fluid"]["description"])
+                st.markdown(
+                    '<div style="font-size: 15px; font-weight: 500; color: var(--color-paper); margin-bottom: 4px;">4. Purge Fluid & Natural Orifices</div>', unsafe_allow_html=True)
+                st.caption(
+                    MORPHOLOGICAL_SIGN_GUIDES["purge_fluid"]["description"])
                 purge_opt = st.radio(
                     "Purge Fluid:",
-                    list(MORPHOLOGICAL_SIGN_GUIDES["purge_fluid"]["stages"].keys()),
+                    list(
+                        MORPHOLOGICAL_SIGN_GUIDES["purge_fluid"]["stages"].keys()),
                     index=2,
                     label_visibility="collapsed",
                     key="radio_purge",
@@ -1775,11 +2036,14 @@ elif st.session_state["view"] == "examination":
         with st.container(border=True):
             m_col1, m_col2 = st.columns([1.05, 0.95])
             with m_col1:
-                st.markdown('<div style="font-size: 15px; font-weight: 500; color: var(--color-paper); margin-bottom: 4px;">5. Entomology & Maggot Colonization</div>', unsafe_allow_html=True)
-                st.caption(MORPHOLOGICAL_SIGN_GUIDES["maggot_activity"]["description"])
+                st.markdown(
+                    '<div style="font-size: 15px; font-weight: 500; color: var(--color-paper); margin-bottom: 4px;">5. Entomology & Maggot Colonization</div>', unsafe_allow_html=True)
+                st.caption(
+                    MORPHOLOGICAL_SIGN_GUIDES["maggot_activity"]["description"])
                 maggots_opt = st.radio(
                     "Entomology Activity:",
-                    list(MORPHOLOGICAL_SIGN_GUIDES["maggot_activity"]["stages"].keys()),
+                    list(
+                        MORPHOLOGICAL_SIGN_GUIDES["maggot_activity"]["stages"].keys()),
                     index=1,
                     label_visibility="collapsed",
                     key="radio_maggots",
@@ -1857,7 +2121,8 @@ elif st.session_state["view"] == "examination":
                     '<span style="font-family: var(--font-mono); font-size: 10px; background: rgba(206, 247, 158, 0.15); color: var(--color-bioluminescent-lime); border: 1px solid var(--color-bioluminescent-lime); padding: 2px 7px; border-radius: 4px;">RECOMMENDED</span>'
                     if item["is_recommended"] else ""
                 )
-                gram_class = "gram-badge-pos" if "positive" in item.get("gram_stain", "").lower() else "gram-badge-neg"
+                gram_class = "gram-badge-pos" if "positive" in item.get(
+                    "gram_stain", "").lower() else "gram-badge-neg"
                 banner_html = get_microbe_card_banner(
                     item["taxon_id"],
                     item["common_name"],
@@ -1901,9 +2166,10 @@ elif st.session_state["view"] == "examination":
                 </div>
                 """
                 render_clean_html(card_html)
-                
+
                 # Action area: Confirmation checkbox inside clean dock with proper separation
-                st.markdown('<div class="taxa-dock-wrapper">', unsafe_allow_html=True)
+                st.markdown('<div class="taxa-dock-wrapper">',
+                            unsafe_allow_html=True)
                 is_checked = st.checkbox(
                     f"Confirm {item['common_name']} ({item['stage']})",
                     value=item["is_recommended"],
@@ -1914,14 +2180,16 @@ elif st.session_state["view"] == "examination":
                 if is_checked:
                     selected_taxa_current.append(item["taxon_id"])
 
-        st.markdown("<div style='margin-top: 8px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-top: 8px;'></div>",
+                    unsafe_allow_html=True)
 
         # Confirmation Action Bar
         col_act1, col_act2 = st.columns([1.8, 1.2])
         with col_act1:
             if st.button("CONFIRM MICROBIAL PROFILE & CALCULATE PMI", type="primary", use_container_width=True):
                 if not selected_taxa_current:
-                    st.error("Please confirm at least one microbial bioindicator to calculate the postmortem interval.")
+                    st.error(
+                        "Please confirm at least one microbial bioindicator to calculate the postmortem interval.")
                 else:
                     st.session_state["confirmed_taxa"] = selected_taxa_current
                     st.session_state["triage_confirmed"] = True
@@ -1969,7 +2237,8 @@ elif st.session_state["view"] == "examination":
                         "manner_of_death": manner_of_death_input,
                         "micro_findings": f"Diagnostic bioindicator confirmation ({len(selected_taxa_current)} verified taxa): {', '.join([t.replace('_', ' ') for t in selected_taxa_current[:4]])} predominant.",
                     }
-                    st.success("Microbial succession profile verified. Quantile PMI estimated.")
+                    st.success(
+                        "Microbial succession profile verified. Quantile PMI estimated.")
 
         with col_act2:
             if st.session_state["triage_confirmed"]:
@@ -1994,7 +2263,8 @@ elif st.session_state["view"] == "examination":
         dt_latest = now_dt - timedelta(days=p_low)
 
         with st.container(border=True):
-            st.markdown('<div class="section-counter" style="margin-bottom: 20px;">04 / TIME-OF-DEATH INFERENCE RESULTS</div>', unsafe_allow_html=True)
+            st.markdown(
+                '<div class="section-counter" style="margin-bottom: 20px;">04 / TIME-OF-DEATH INFERENCE RESULTS</div>', unsafe_allow_html=True)
 
             kpi1, kpi2, kpi3, kpi4 = st.columns(4)
             with kpi1:
@@ -2037,7 +2307,8 @@ elif st.session_state["view"] == "examination":
                 line_width=0,
                 annotation_text="Probable Window of Death",
                 annotation_position="top left",
-                annotation_font=dict(color="#cef79e", size=11, family="Roboto Mono"),
+                annotation_font=dict(
+                    color="#cef79e", size=11, family="Roboto Mono"),
             )
             fig_pmi.add_trace(go.Scatter(
                 x=[p_low, p_high],
@@ -2062,8 +2333,10 @@ elif st.session_state["view"] == "examination":
                     range=[0, max(28.0, p_high * 1.3)],
                     showgrid=True,
                     gridcolor="#2d3c3d",
-                    title_font=dict(color="#c9cbbe", size=12, family="Roboto Mono"),
-                    tickfont=dict(color="#c9cbbe", size=11, family="Roboto Mono"),
+                    title_font=dict(color="#c9cbbe", size=12,
+                                    family="Roboto Mono"),
+                    tickfont=dict(color="#c9cbbe", size=11,
+                                  family="Roboto Mono"),
                 ),
                 yaxis=dict(showticklabels=False, range=[-0.5, 0.5]),
                 height=180,
@@ -2077,14 +2350,17 @@ elif st.session_state["view"] == "examination":
             # ---------------------------------------------------------
             # STEP 5: OFFICIAL POST-MORTEM REPORT & PDF EXPORT
             # ---------------------------------------------------------
-            st.markdown('<hr class="hairline-dark" style="margin: 32px 0;">', unsafe_allow_html=True)
-            st.markdown('<div class="section-counter" style="margin-bottom: 20px;">05 / OFFICIAL CASE REPORT DOSSIER</div>', unsafe_allow_html=True)
+            st.markdown(
+                '<hr class="hairline-dark" style="margin: 32px 0;">', unsafe_allow_html=True)
+            st.markdown(
+                '<div class="section-counter" style="margin-bottom: 20px;">05 / OFFICIAL CASE REPORT DOSSIER</div>', unsafe_allow_html=True)
 
             case_info = st.session_state["case_particulars"]
             pm_no = case_info.get("pm_report_no", "PM-619 / 2026")
             ps_name = case_info.get("police_station", "New Township P.S.")
             inquest_no = case_info.get("inquest_no", "14 / 2026")
-            dec_name = case_info.get("deceased_name", "Unidentified Individual")
+            dec_name = case_info.get(
+                "deceased_name", "Unidentified Individual")
             doc_name = case_info.get("analyst", "Dr. Tanish Walture")
             raw_cause = case_info.get("cause_of_death", "Pending Inquest")
 
@@ -2096,7 +2372,8 @@ elif st.session_state["view"] == "examination":
             qr_url = f"https://necrotrace.streamlit.app/?view=verify&case={clean_pm}&inq={clean_inq}&pmi={p_est:.1f}d&hash={evidence_hash[:16]}"
 
             qr_svg_str = generate_qr_code_svg(qr_url, size=130.0)
-            qr_b64 = base64.b64encode(qr_svg_str.encode("utf-8")).decode("ascii")
+            qr_b64 = base64.b64encode(
+                qr_svg_str.encode("utf-8")).decode("ascii")
 
             # On-screen preview of Form PM-5372
             render_clean_html(f"""
@@ -2147,7 +2424,7 @@ elif st.session_state["view"] == "examination":
                     </div>
                     <div style="border-top: 1px solid #33494a; padding-top: 8px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; font-family: var(--font-mono); font-size: 11px; color: var(--color-graphite);">
                         <span><b>Digital Evidence Digest (SHA-256):</b> <code style="color: var(--color-bioluminescent-lime);">{evidence_hash[:32]}...</code></span>
-                        <span style="color: #6ee7b7;">● TAMPER-EVIDENT QR VERIFIED</span>
+                        <span style="color: #6ee7b7;">TAMPER-EVIDENT QR VERIFIED</span>
                     </div>
                 </div>
             </div>
@@ -2172,8 +2449,7 @@ elif st.session_state["view"] == "examination":
             # CHAIN-OF-CUSTODY AUTHENTICATION & GATED PDF DOWNLOAD
             # ---------------------------------------------------------
             is_report_unlocked = (
-                st.session_state.get("authenticated_officer") is not None
-                or pm_no in st.session_state.get("unlocked_reports", set())
+                pm_no in st.session_state.get("unlocked_reports", set())
                 or clean_pm in st.session_state.get("unlocked_reports", set())
             )
 
@@ -2184,14 +2460,14 @@ elif st.session_state["view"] == "examination":
                 <div style="background: #172324; border: 1.5px solid #f59e0b; border-radius: 12px; padding: 22px; margin-top: 14px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
                     <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #2d3d3e; padding-bottom: 14px; margin-bottom: 16px;">
                         <div style="display: flex; align-items: center; gap: 12px;">
-                            <span style="font-size: 26px;">🔒</span>
+                            <div class="mono-tag" style="color: #f59e0b; font-size: 11px; font-weight: 700; border: 1px solid #f59e0b; padding: 2px 8px; border-radius: 4px;">SEC-LOCK</div>
                             <div>
                                 <div class="mono-tag" style="color: #f59e0b; font-size: 10px;">CHAIN-OF-CUSTODY ENCRYPTION LOCK &bull; ISO 17025 COMPLIANT</div>
                                 <div style="font-size: 17px; font-weight: 600; color: #ffffff;">AUTHENTICATION REQUIRED TO DOWNLOAD OFFICIAL REPORT</div>
                             </div>
                         </div>
                         <span style="font-family: var(--font-mono); font-size: 11px; background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid #f59e0b; padding: 4px 12px; border-radius: 9999px;">
-                            ● DOWNLOAD LOCKED
+                            DOWNLOAD LOCKED
                         </span>
                     </div>
                     <div style="font-size: 13px; color: #cbd5e1; line-height: 1.55; margin-bottom: 16px;">
@@ -2201,7 +2477,7 @@ elif st.session_state["view"] == "examination":
                     <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
                         <a href="{qr_url}" target="_blank" style="text-decoration: none;">
                             <div style="background: var(--color-bioluminescent-lime); color: #000000; font-family: var(--font-mono); font-weight: 700; font-size: 12px; padding: 10px 18px; border-radius: 6px; display: inline-flex; align-items: center; gap: 8px;">
-                                <span>📱</span> OPEN MOBILE VERIFICATION PORTAL ↗
+                                OPEN MOBILE VERIFICATION PORTAL &rarr;
                             </div>
                         </a>
                         <span style="font-size: 12px; color: var(--color-graphite);">or scan the QR code above with any mobile camera</span>
@@ -2211,42 +2487,52 @@ elif st.session_state["view"] == "examination":
 
                 lock_col1, lock_col2 = st.columns([1.1, 1.0])
                 with lock_col1:
-                    st.markdown('<div class="mono-tag" style="margin-bottom: 6px;">METHOD 1: ENTER 6-DIGIT RELEASE PASSCODE</div>', unsafe_allow_html=True)
+                    st.markdown(
+                        '<div class="mono-tag" style="margin-bottom: 6px;">METHOD 1: ENTER 6-DIGIT RELEASE PASSCODE</div>', unsafe_allow_html=True)
                     pass_in = st.text_input(
                         "Enter Release Passcode",
                         placeholder="e.g. NC-3162 (shown on mobile verification screen)",
                         key=f"passcode_input_{clean_pm}",
                         label_visibility="collapsed"
                     )
-                    if st.button("🔓 VERIFY PASSCODE & RELEASE REPORT", use_container_width=True, key=f"btn_unlock_{clean_pm}"):
+                    if st.button("VERIFY PASSCODE & RELEASE REPORT", use_container_width=True, key=f"btn_unlock_{clean_pm}"):
                         if verify_release_passcode(clean_pm, pass_in):
                             st.session_state["unlocked_reports"].add(pm_no)
                             st.session_state["unlocked_reports"].add(clean_pm)
-                            st.success("✅ Workstation Release Code Accepted! Official PDF Dossier released.")
+                            st.success(
+                                "Workstation Release Code Accepted. Official PDF Dossier released.")
                             st.rerun()
                         else:
-                            st.error("⛔ Invalid release passcode. Please authenticate via the QR code on your mobile device first.")
+                            st.error(
+                                "Invalid release passcode. Please authenticate via the QR code on your mobile device first.")
 
                 with lock_col2:
-                    st.markdown('<div class="mono-tag" style="margin-bottom: 6px;">METHOD 2: DIRECT TERMINAL AUTHENTICATION</div>', unsafe_allow_html=True)
-                    with st.expander("🔑 Examiner Credentials Sign-In", expanded=False):
-                        dir_email = st.text_input("Examiner Email", placeholder="coroner@necrotrace.gov", key="dir_email")
-                        dir_pass = st.text_input("Password", type="password", key="dir_pass")
+                    st.markdown(
+                        '<div class="mono-tag" style="margin-bottom: 6px;">METHOD 2: DIRECT TERMINAL AUTHENTICATION</div>', unsafe_allow_html=True)
+                    with st.expander("Examiner Credentials Sign-In", expanded=False):
+                        dir_email = st.text_input(
+                            "Examiner Email", placeholder="coroner@necrotrace.gov", key="dir_email")
+                        dir_pass = st.text_input(
+                            "Password", type="password", key="dir_pass")
                         if st.button("VERIFY & SIGN IN", use_container_width=True, key="btn_direct_signin"):
                             auth_res = sign_in_officer(dir_email, dir_pass)
                             if auth_res.get("success"):
-                                st.session_state["authenticated_officer"] = auth_res.get("officer_info")
+                                st.session_state["authenticated_officer"] = auth_res.get(
+                                    "officer_info")
                                 st.session_state["unlocked_reports"].add(pm_no)
-                                st.session_state["unlocked_reports"].add(clean_pm)
-                                st.success(f"✅ Officer Verified: {auth_res.get('officer_info', {}).get('name')}")
+                                st.session_state["unlocked_reports"].add(
+                                    clean_pm)
+                                st.success(
+                                    f"Officer Verified: {auth_res.get('officer_info', {}).get('name')}")
                                 st.rerun()
                             else:
-                                st.error(f"⛔ {auth_res.get('message')}")
+                                st.error(auth_res.get('message'))
 
             else:
                 officer = st.session_state.get("authenticated_officer") or {}
                 officer_label = officer.get("name", "Authorized Officer")
-                officer_badge = officer.get("badge", "CHAIN-OF-CUSTODY VERIFIED")
+                officer_badge = officer.get(
+                    "badge", "CHAIN-OF-CUSTODY VERIFIED")
                 render_clean_html(f"""
                 <div style="background: rgba(6, 78, 59, 0.45); border: 1.5px solid #10b981; border-radius: 10px; padding: 14px 20px; margin-top: 14px; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between;">
                     <div style="display: flex; align-items: center; gap: 12px;">
@@ -2257,7 +2543,7 @@ elif st.session_state["view"] == "examination":
                         </div>
                     </div>
                     <span style="font-family: var(--font-mono); font-size: 11px; background: #064e3b; color: #6ee7b7; padding: 4px 10px; border-radius: 9999px;">
-                        ● UNLOCKED
+                        UNLOCKED
                     </span>
                 </div>
                 """)
@@ -2281,10 +2567,14 @@ elif st.session_state["view"] == "verify":
     pmi_param = st.query_params.get("pmi", "6.8d").replace("d", " Days")
     hash_param = st.query_params.get("hash", "7f83b165ff29a1b4")
     ps_param = st.query_params.get("ps", "New Township Police Station")
-    dec_param = st.query_params.get("dec", "Unidentified Individual (Ref: Unknown #42)")
-    doc_param = st.query_params.get("doc", "Dr. Tanish Walture, M.D. (WBMC / 45826)")
-    cod_param = st.query_params.get("cod", "ASPHYXIA AS A RESULT OF CONSTRICTION OF NECK (PENDING TOXICOLOGY & HISTOLOGY)")
-    mod_param = st.query_params.get("mod", "Matter under judicial inquiry / Forensic Inquest")
+    dec_param = st.query_params.get(
+        "dec", "Unidentified Individual (Ref: Unknown #42)")
+    doc_param = st.query_params.get(
+        "doc", "Dr. Tanish Walture, M.D. (WBMC / 45826)")
+    cod_param = st.query_params.get(
+        "cod", "ASPHYXIA AS A RESULT OF CONSTRICTION OF NECK (PENDING TOXICOLOGY & HISTOLOGY)")
+    mod_param = st.query_params.get(
+        "mod", "Matter under judicial inquiry / Forensic Inquest")
 
     # If active session state has case particulars, prioritize them
     if st.session_state.get("case_particulars"):
@@ -2312,14 +2602,15 @@ elif st.session_state["view"] == "verify":
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
             <span style="font-family: var(--font-mono); font-size: 11px; background: #064e3b; color: #6ee7b7; border: 1px solid #059669; padding: 4px 10px; border-radius: 9999px;">
-                ● LIVE VERIFIED DOSSIER
+                LIVE VERIFIED DOSSIER
             </span>
         </div>
     </div>
     """)
 
     # Main Certificate Container
-    st.markdown('<div style="max-width: 860px; margin: 0 auto; padding: 0 16px;">', unsafe_allow_html=True)
+    st.markdown('<div style="max-width: 860px; margin: 0 auto; padding: 0 16px;">',
+                unsafe_allow_html=True)
 
     clean_case_id = case_param.replace(" ", "").replace("/", "-")
     is_authed = (
@@ -2335,9 +2626,9 @@ elif st.session_state["view"] == "verify":
     if not is_authed:
         firebase_online = is_firebase_configured()
         fb_status_html = (
-            '<span style="font-family: var(--font-mono); font-size: 11px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid #10b981; padding: 3px 10px; border-radius: 9999px;">● FIREBASE AUTH: LIVE CLOUD GATEWAY</span>'
+            '<span style="font-family: var(--font-mono); font-size: 11px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid #10b981; padding: 3px 10px; border-radius: 9999px;">FIREBASE AUTH: LIVE CLOUD GATEWAY</span>'
             if firebase_online else
-            '<span style="font-family: var(--font-mono); font-size: 11px; background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid #f59e0b; padding: 3px 10px; border-radius: 9999px;">● FIREBASE AUTH: SANDBOX EVALUATION DIRECTORY</span>'
+            '<span style="font-family: var(--font-mono); font-size: 11px; background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid #f59e0b; padding: 3px 10px; border-radius: 9999px;">FIREBASE AUTH: SANDBOX EVALUATION DIRECTORY</span>'
         )
 
         render_clean_html(f"""
@@ -2357,76 +2648,113 @@ elif st.session_state["view"] == "verify":
         """)
 
         auth_tab_signin, auth_tab_reg = st.tabs([
-            "🔑 Officer Sign-In & Verification",
-            "📝 Register Authorized Personnel"
+            "Officer Sign-In & Verification",
+            "Register Authorized Personnel"
         ])
 
         with auth_tab_signin:
             if not firebase_online:
-                st.info("💡 **Sandbox Mode Active**: Pre-registered test examiner accounts: `coroner@necrotrace.gov` (password: `necrotrace2026`) or `examiner@police.gov` (password: `investigation`). To connect your live Firebase project, add `FIREBASE_WEB_API_KEY` to Streamlit secrets.")
+                st.info("<b>Sandbox Mode Active</b>: Pre-registered test examiner accounts: <code>coroner@necrotrace.gov</code> (password: <code>necrotrace2026</code>) or <code>examiner@police.gov</code> (password: <code>investigation</code>). To connect your live Firebase project, add <code>FIREBASE_WEB_API_KEY</code> to Streamlit secrets.")
 
             v_col_email, v_col_pass = st.columns([1.2, 1.0])
             with v_col_email:
-                v_email = st.text_input("Official Registered Email", placeholder="e.g. coroner@necrotrace.gov", key="verify_portal_email")
+                v_email = st.text_input(
+                    "Official Registered Email", placeholder="e.g. coroner@necrotrace.gov", key="verify_portal_email")
             with v_col_pass:
-                v_pass = st.text_input("Security Credentials / Passcode", type="password", key="verify_portal_pass")
+                v_pass = st.text_input(
+                    "Security Credentials / Passcode", type="password", key="verify_portal_pass")
 
             btn_col1, btn_col2 = st.columns(2)
             with btn_col1:
-                if st.button("🔍 CHECK EMAIL REGISTRATION", use_container_width=True, key="btn_check_reg"):
+                if st.button("CHECK EMAIL REGISTRATION", use_container_width=True, key="btn_check_reg"):
                     if not v_email:
                         st.warning("Please enter an email address to check.")
                     else:
                         with st.spinner("Checking Firebase Medical Examiner Directory..."):
-                            is_reg, reg_msg = check_email_registered_in_firebase(v_email)
+                            is_reg, reg_msg = check_email_registered_in_firebase(
+                                v_email)
                         if is_reg:
-                            st.success(f"✅ Registered: {reg_msg}")
+                            st.success(f"Registered: {reg_msg}")
                         else:
-                            st.error(f"⛔ ACCESS DENIED: {reg_msg}")
+                            st.error(f"ACCESS DENIED: {reg_msg}")
 
             with btn_col2:
-                if st.button("🔐 AUTHENTICATE & UNLOCK DOSSIER", use_container_width=True, key="btn_auth_unlock"):
+                if st.button("AUTHENTICATE & UNLOCK DOSSIER", use_container_width=True, key="btn_auth_unlock"):
                     if not v_email or not v_pass:
-                        st.warning("Please enter both registered email and password.")
+                        st.warning(
+                            "Please enter both registered email and password.")
                     else:
                         with st.spinner("Authenticating against Firebase Identity Toolkit..."):
                             auth_res = sign_in_officer(v_email, v_pass)
                         if auth_res.get("success"):
-                            st.session_state["authenticated_officer"] = auth_res.get("officer_info")
-                            st.session_state["unlocked_reports"].add(case_param)
-                            st.session_state["unlocked_reports"].add(clean_case_id)
-                            st.success(f"✅ Credentials Validated! Welcome, {auth_res.get('officer_info', {}).get('name')}.")
+                            st.session_state["authenticated_officer"] = auth_res.get(
+                                "officer_info")
+                            st.session_state["unlocked_reports"].add(
+                                case_param)
+                            st.session_state["unlocked_reports"].add(
+                                clean_case_id)
+                            st.success(
+                                f"Credentials Validated. Welcome, {auth_res.get('officer_info', {}).get('name')}.")
                             st.rerun()
                         else:
-                            st.error(f"⛔ {auth_res.get('message')}")
+                            st.error(auth_res.get('message'))
 
         with auth_tab_reg:
             st.markdown('<div style="font-size: 13px; color: #cbd5e1; margin-bottom: 12px;">Enroll an authorized forensic practitioner into the Firebase authentication repository.</div>', unsafe_allow_html=True)
             r_c1, r_c2 = st.columns(2)
             with r_c1:
-                r_name = st.text_input("Full Name & Title", placeholder="Dr. Jane Doe, M.D.", key="reg_officer_name")
+                r_name = st.text_input(
+                    "Full Name & Title", placeholder="Dr. Jane Doe, M.D.", key="reg_officer_name")
+                r_station = st.text_input(
+                    "Police Station / Lab", placeholder="State Forensic Science Lab", key="reg_officer_station")
             with r_c2:
-                r_email = st.text_input("Departmental Email", placeholder="jane.doe@necrotrace.gov", key="reg_officer_email")
-            r_pass = st.text_input("Assign Password (min. 6 characters)", type="password", key="reg_officer_pass")
+                r_badge = st.text_input(
+                    "Badge / Reg. No.", placeholder="MED-9042 / WBMC-45826", key="reg_officer_badge")
+                r_role = st.selectbox("Role", ["Forensic Pathologist", "Chief Medical Examiner", "Senior Investigating Officer",
+                                      "Forensic Anthropologist", "Toxicology Specialist", "Judicial Inquest Officer"], index=0, key="reg_officer_role")
 
-            if st.button("📝 ENROLL OFFICER IN FORENSIC DIRECTORY", use_container_width=True, key="btn_register_officer"):
-                if not r_email or not r_pass:
-                    st.warning("Please provide email and a secure password.")
+            r_email = st.text_input(
+                "Departmental Email", placeholder="jane.doe@necrotrace.gov", key="reg_officer_email")
+            r_pass = st.text_input(
+                "Assign Password (min. 6 characters)", type="password", key="reg_officer_pass")
+
+            if st.button("ENROLL OFFICER IN FORENSIC DIRECTORY", use_container_width=True, key="btn_register_officer"):
+                if not r_email or not r_pass or not r_name:
+                    st.warning(
+                        "Please provide Name, Email, and a secure Password.")
+                elif len(r_pass) < 6:
+                    st.error("Password must be at least 6 characters.")
                 else:
-                    with st.spinner("Registering with Firebase Auth..."):
-                        reg_out = register_officer(r_email, r_pass, r_name)
+                    with st.spinner("Registering with Firebase Auth & Firestore Directory..."):
+                        reg_out = register_officer(
+                            email=r_email,
+                            password=r_pass,
+                            full_name=r_name,
+                            name=r_name,
+                            badge=r_badge,
+                            station=r_station,
+                            role=r_role,
+                        )
                     if reg_out.get("success"):
-                        st.success("✅ Officer account enrolled successfully in Firebase! You can now proceed to Sign In.")
+                        st.session_state["authenticated_officer"] = reg_out.get(
+                            "officer_info")
+                        st.session_state["unlocked_reports"].add(case_param)
+                        st.session_state["unlocked_reports"].add(clean_case_id)
+                        st.success(
+                            f"Officer {r_name} enrolled successfully in Firebase. Unlocking dossier...")
+                        st.rerun()
                     else:
-                        st.error(f"⚠️ {reg_out.get('message')}")
+                        st.error(reg_out.get('message'))
 
     else:
         # OFFICER IS AUTHENTICATED: Display Verified Status & Release Controls
         cur_officer = st.session_state.get("authenticated_officer") or {}
-        off_name = cur_officer.get("name", "Dr. Tanish Walture")
+        off_name = cur_officer.get("name") or cur_officer.get(
+            "fullName") or "Dr. Tanish Walture"
         off_role = cur_officer.get("role", "Chief Forensic Pathologist")
         off_badge = cur_officer.get("badge", "CFS-9042")
-        off_station = cur_officer.get("station", "Central Forensic Science Laboratory")
+        off_station = cur_officer.get(
+            "station", "Central Forensic Science Laboratory")
 
         render_clean_html(f"""
         <div style="background: rgba(6, 78, 59, 0.45); border: 2px solid #10b981; border-radius: 14px; padding: 24px; margin-bottom: 24px; box-shadow: 0 8px 32px rgba(16, 185, 129, 0.2);">
@@ -2439,7 +2767,7 @@ elif st.session_state["view"] == "verify":
                     </div>
                 </div>
                 <span style="font-family: var(--font-mono); font-size: 11px; background: #064e3b; color: #6ee7b7; border: 1px solid #059669; padding: 4px 12px; border-radius: 9999px;">
-                    ● CREDENTIALS VALIDATED
+                    CREDENTIALS VALIDATED
                 </span>
             </div>
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; font-size: 12px; color: #d1fae5; margin-bottom: 18px; background: rgba(0, 0, 0, 0.25); padding: 12px; border-radius: 8px;">
@@ -2460,7 +2788,8 @@ elif st.session_state["view"] == "verify":
         # Generate on-demand authentic certified PDF for mobile / browser download
         pmi_num = 6.8
         try:
-            pmi_num = float(st.query_params.get("pmi", "6.8d").replace("d", "").replace("Days", "").strip())
+            pmi_num = float(st.query_params.get("pmi", "6.8d").replace(
+                "d", "").replace("Days", "").strip())
         except Exception:
             pmi_num = 6.8
 
@@ -2500,19 +2829,20 @@ elif st.session_state["view"] == "verify":
         }
 
         with st.spinner("Generating authenticated Court-Admissible PDF (Form PM-5372)..."):
-            verified_pdf_bytes = generate_forensic_pdf(v_case_meta, v_pmi_find, v_qc_met)
+            verified_pdf_bytes = generate_forensic_pdf(
+                v_case_meta, v_pmi_find, v_qc_met)
 
         col_dl, col_so = st.columns([3, 1])
         with col_dl:
             st.download_button(
-                label="⬇️ DOWNLOAD OFFICIAL FORM PM-5372 (CERTIFIED PDF)",
+                label="DOWNLOAD OFFICIAL FORM PM-5372 (CERTIFIED PDF)",
                 data=verified_pdf_bytes,
                 file_name=f"Certified_PostMortem_{clean_case_id}.pdf",
                 mime="application/pdf",
                 use_container_width=True,
             )
         with col_so:
-            if st.button("🔒 SIGN OUT", use_container_width=True, key="btn_signout"):
+            if st.button("SIGN OUT", use_container_width=True, key="btn_signout"):
                 st.session_state["authenticated_officer"] = None
                 st.rerun()
 

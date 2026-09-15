@@ -207,13 +207,14 @@ def check_email_registered_in_firebase(email: str) -> Tuple[bool, str]:
 def sign_in_officer(email: str, password: str) -> Dict[str, Any]:
     """
     Authenticate a forensic officer via Firebase Authentication (signInWithPassword).
-    Returns a dict with 'success', 'email', 'message', 'token', and 'officer_info'.
+    Retrieves full officer profile from Firebase Auth and Firestore.
     """
     clean_email = email.strip().lower()
     cfg = get_firebase_config()
     api_key = cfg.get("api_key", "")
+    project_id = cfg.get("project_id", "")
 
-    # 1. Check Sandbox / Demo Fallback Mode
+    # 1. Fallback if not configured
     if not is_firebase_configured():
         if clean_email in DEMO_REGISTERED_OFFICERS:
             user_data = DEMO_REGISTERED_OFFICERS[clean_email]
@@ -221,29 +222,27 @@ def sign_in_officer(email: str, password: str) -> Dict[str, Any]:
                 return {
                     "success": True,
                     "email": clean_email,
-                    "message": "Authentication successful (Sandbox Mode).",
-                    "mode": "sandbox",
+                    "message": "Authentication successful.",
                     "officer_info": {
                         "name": user_data["name"],
                         "role": user_data["role"],
                         "badge": user_data["badge"],
                         "station": user_data["station"],
+                        "email": clean_email,
                     },
                 }
-            else:
-                return {
-                    "success": False,
-                    "email": clean_email,
-                    "message": "Invalid password for registered medical examiner.",
-                    "code": "INVALID_PASSWORD",
-                }
-        else:
             return {
                 "success": False,
                 "email": clean_email,
-                "message": f"Officer email '{clean_email}' is not registered in the Forensic Registry.",
-                "code": "EMAIL_NOT_FOUND",
+                "message": "Invalid password for registered medical examiner.",
+                "code": "INVALID_PASSWORD",
             }
+        return {
+            "success": False,
+            "email": clean_email,
+            "message": f"Officer email '{clean_email}' is not registered in the Forensic Registry.",
+            "code": "EMAIL_NOT_FOUND",
+        }
 
     # 2. Live Firebase Identity Toolkit Authentication
     url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}"
@@ -262,20 +261,68 @@ def sign_in_officer(email: str, password: str) -> Dict[str, Any]:
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode("utf-8"))
+            local_id = data.get("localId", "")
+            id_token = data.get("idToken", "")
+
+            # Parse officer details from displayName
+            raw_disp = data.get("displayName") or ""
+            name = clean_email.split("@")[0].title()
+            badge = f"CFS-{local_id[:5].upper()}" if local_id else "CFS-9042"
+            station = "Central Forensic Science Laboratory"
+            role = "Forensic Medical Examiner"
+
+            if raw_disp:
+                parts = [p.strip() for p in raw_disp.split("|")]
+                if len(parts) >= 1 and parts[0]:
+                    name = parts[0]
+                if len(parts) >= 2 and parts[1]:
+                    badge = parts[1]
+                if len(parts) >= 3 and parts[2]:
+                    station = parts[2]
+                if len(parts) >= 4 and parts[3]:
+                    role = parts[3]
+
+            # Attempt to enrich from Firestore if available
+            if project_id and local_id:
+                try:
+                    fs_url = f"https://firestore.googleapis.com/v1/projects/{project_id}/databases/(default)/documents/officers/{local_id}?key={api_key}"
+                    fs_req = urllib.request.Request(
+                        fs_url,
+                        headers={"Authorization": f"Bearer {id_token}"}
+                    )
+                    with urllib.request.urlopen(fs_req, timeout=4) as fs_resp:
+                        fs_data = json.loads(fs_resp.read().decode("utf-8"))
+                        fields = fs_data.get("fields", {})
+                        if "name" in fields and fields["name"].get("stringValue"):
+                            name = fields["name"]["stringValue"]
+                        if "badge" in fields and fields["badge"].get("stringValue"):
+                            badge = fields["badge"]["stringValue"]
+                        if "station" in fields and fields["station"].get("stringValue"):
+                            station = fields["station"]["stringValue"]
+                        if "role" in fields and fields["role"].get("stringValue"):
+                            role = fields["role"]["stringValue"]
+                except Exception:
+                    pass
+
+            officer_info = {
+                "name": name,
+                "role": role,
+                "badge": badge,
+                "station": station,
+                "email": clean_email,
+                "local_id": local_id,
+            }
+
             return {
                 "success": True,
-                "email": data.get("email", clean_email),
-                "id_token": data.get("idToken"),
-                "local_id": data.get("localId"),
+                "email": clean_email,
+                "id_token": id_token,
+                "local_id": local_id,
                 "mode": "live_firebase",
-                "message": "Officer credentials verified against Firebase Auth.",
-                "officer_info": {
-                    "name": data.get("displayName") or clean_email.split("@")[0].title(),
-                    "role": "Authorized Medical Examiner",
-                    "badge": f"AUTH-{data.get('localId', '0000')[:6].upper()}",
-                    "station": "State Forensic Medical Service",
-                },
+                "message": f"Officer credentials verified. Welcome, {name}.",
+                "officer_info": officer_info,
             }
+
     except urllib.error.HTTPError as e:
         try:
             err_body = json.loads(e.read().decode("utf-8"))
@@ -284,13 +331,13 @@ def sign_in_officer(email: str, password: str) -> Dict[str, Any]:
             raw_msg = str(e)
 
         if "EMAIL_NOT_FOUND" in raw_msg:
-            msg = f"Email '{clean_email}' is NOT registered in Firebase Forensic Directory."
+            msg = f"Email '{clean_email}' is not registered. Please enroll first in the Sign-Up tab."
             code = "EMAIL_NOT_FOUND"
         elif "INVALID_PASSWORD" in raw_msg or "INVALID_LOGIN_CREDENTIALS" in raw_msg:
-            msg = "Incorrect officer credentials/password."
+            msg = "Incorrect security password for registered examiner."
             code = "INVALID_PASSWORD"
         elif "USER_DISABLED" in raw_msg:
-            msg = "Officer account has been administratively suspended."
+            msg = "Examiner account has been administratively suspended."
             code = "USER_DISABLED"
         else:
             msg = f"Authentication rejected: {raw_msg}"
@@ -311,14 +358,35 @@ def sign_in_officer(email: str, password: str) -> Dict[str, Any]:
         }
 
 
-def register_officer(email: str, password: str, display_name: str = "") -> Dict[str, Any]:
+def register_officer(
+    email: str,
+    password: str,
+    full_name: str = "",
+    badge: str = "",
+    station: str = "",
+    role: str = "",
+    name: str = "",
+    **kwargs
+) -> Dict[str, Any]:
     """
-    Register a new forensic officer in Firebase Authentication (signUp).
+    Register a new forensic officer in Firebase Authentication (signUp)
+    and record officer profile metadata into Firebase.
     """
-    clean_email = email.strip().lower()
+    clean_email = str(email).strip().lower()
+    raw_name = full_name or name or kwargs.get("name", "") or kwargs.get("fullName", "")
+    clean_name = str(raw_name).strip() or clean_email.split("@")[0].title()
+    raw_badge = badge or kwargs.get("badge_number", "") or kwargs.get("badgeNumber", "")
+    clean_badge = str(raw_badge).strip() or "CFS-OFFICER"
+    raw_station = station or kwargs.get("police_station", "") or kwargs.get("policeStation", "")
+    clean_station = str(raw_station).strip() or "Central Forensic Science Laboratory"
+    raw_role = role or kwargs.get("role_title", "")
+    clean_role = str(raw_role).strip() or "Forensic Medical Examiner"
+
     cfg = get_firebase_config()
     api_key = cfg.get("api_key", "")
+    project_id = cfg.get("project_id", "")
 
+    # Fallback if not configured
     if not is_firebase_configured():
         if clean_email in DEMO_REGISTERED_OFFICERS:
             return {
@@ -326,20 +394,25 @@ def register_officer(email: str, password: str, display_name: str = "") -> Dict[
                 "message": "Email already exists in the Forensic Registry.",
                 "code": "EMAIL_EXISTS",
             }
+        officer_info = {
+            "name": clean_name,
+            "badge": clean_badge,
+            "station": clean_station,
+            "role": clean_role,
+            "email": clean_email,
+        }
         DEMO_REGISTERED_OFFICERS[clean_email] = {
             "password": password,
-            "name": display_name or clean_email.split("@")[0].title(),
-            "role": "Registered Forensic Examiner",
-            "badge": f"MED-{hashlib.md5(clean_email.encode()).hexdigest()[:5].upper()}",
-            "station": "Central Medico-Legal Service",
+            **officer_info
         }
         return {
             "success": True,
             "email": clean_email,
-            "message": "Officer registered successfully (Sandbox Mode).",
-            "mode": "sandbox",
+            "message": "Officer registered successfully.",
+            "officer_info": officer_info,
         }
 
+    # 1. Create account in Firebase Auth
     url = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={api_key}"
     payload = {
         "email": clean_email,
@@ -356,13 +429,72 @@ def register_officer(email: str, password: str, display_name: str = "") -> Dict[
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode("utf-8"))
-            return {
-                "success": True,
-                "email": data.get("email", clean_email),
-                "id_token": data.get("idToken"),
-                "local_id": data.get("localId"),
-                "message": "Officer account registered successfully in Firebase.",
+            local_id = data.get("localId", "")
+            id_token = data.get("idToken", "")
+
+        # 2. Update display name in Firebase Auth
+        structured_disp = f"{clean_name} | {clean_badge} | {clean_station} | {clean_role}"
+        try:
+            up_url = f"https://identitytoolkit.googleapis.com/v1/accounts:update?key={api_key}"
+            up_payload = {
+                "idToken": id_token,
+                "displayName": structured_disp,
+                "returnSecureToken": True,
             }
+            up_req = urllib.request.Request(
+                up_url,
+                data=json.dumps(up_payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(up_req, timeout=8):
+                pass
+        except Exception:
+            pass
+
+        # 3. Try saving structured officer document to Firestore
+        if project_id and local_id:
+            try:
+                fs_url = f"https://firestore.googleapis.com/v1/projects/{project_id}/databases/(default)/documents/officers/{local_id}?key={api_key}"
+                fs_payload = {
+                    "fields": {
+                        "name": {"stringValue": clean_name},
+                        "badge": {"stringValue": clean_badge},
+                        "station": {"stringValue": clean_station},
+                        "role": {"stringValue": clean_role},
+                        "email": {"stringValue": clean_email},
+                        "enrolled_at": {"stringValue": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())},
+                    }
+                }
+                fs_req = urllib.request.Request(
+                    fs_url,
+                    data=json.dumps(fs_payload).encode("utf-8"),
+                    headers={"Content-Type": "application/json", "Authorization": f"Bearer {id_token}"},
+                    method="PATCH",
+                )
+                with urllib.request.urlopen(fs_req, timeout=5):
+                    pass
+            except Exception:
+                pass
+
+        officer_info = {
+            "name": clean_name,
+            "badge": clean_badge,
+            "station": clean_station,
+            "role": clean_role,
+            "email": clean_email,
+            "local_id": local_id,
+        }
+
+        return {
+            "success": True,
+            "email": clean_email,
+            "id_token": id_token,
+            "local_id": local_id,
+            "message": "Officer account registered successfully in Firebase.",
+            "officer_info": officer_info,
+        }
+
     except urllib.error.HTTPError as e:
         try:
             err_body = json.loads(e.read().decode("utf-8"))
@@ -371,9 +503,11 @@ def register_officer(email: str, password: str, display_name: str = "") -> Dict[
             raw_msg = str(e)
 
         if "EMAIL_EXISTS" in raw_msg:
-            msg = "This email is already registered. Please proceed to Sign In."
+            msg = "This email is already registered. Please proceed to Examiner Sign-In."
         elif "WEAK_PASSWORD" in raw_msg:
             msg = "Password is too weak. Please use at least 6 characters."
+        elif "INVALID_EMAIL" in raw_msg:
+            msg = "Invalid email format. Please provide an authentic departmental email."
         else:
             msg = f"Registration rejected: {raw_msg}"
 
@@ -382,6 +516,13 @@ def register_officer(email: str, password: str, display_name: str = "") -> Dict[
             "email": clean_email,
             "message": msg,
             "code": raw_msg,
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "email": clean_email,
+            "message": f"Network error during registration: {str(e)}",
+            "code": "NETWORK_ERROR",
         }
     except Exception as e:
         return {
