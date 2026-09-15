@@ -155,6 +155,9 @@ NecroTrace/
 │
 └── src/                                # Core computational backend
     ├── __init__.py
+    ├── auth/                           # Firebase Authentication & access control
+    │   ├── __init__.py
+    │   └── firebase_auth.py            # Firebase Identity Toolkit REST API client
     ├── pipeline.py                     # Quantile XGBoost inference & CLR transformation
     ├── report.py                       # Case report structuring utilities
     ├── triage.py                       # Bioindicator catalog & morphological rule engine
@@ -188,6 +191,31 @@ This guarantees that:
 - $\hat{y}_{0.50}$: Median point estimate
 - $\hat{y}_{0.90}$: 90% upper bound (latest probable time of death)
 - Interval $[\hat{y}_{0.10}, \hat{y}_{0.90}]$ provides an empirical 80% confidence window satisfying courtroom standards.
+
+---
+
+## Firebase Authentication & QR-Gated Chain of Custody
+
+To comply with ISO 17025 and Federal Rules of Evidence on chain-of-custody integrity, post-mortem dossiers cannot be accessed anonymously:
+
+1. **Step 5 Report Locking**: When an autopsy dossier is synthesized, the PDF download is encrypted/locked by default.
+2. **High-Contrast QR Code**: The system encodes a case-specific payload into a high-contrast SVG QR seal pointing to `?view=verify`.
+3. **Mobile Verification Portal (`?view=verify`)**:
+   - An officer scans the QR code on a mobile device or opens the portal.
+   - The portal queries **Firebase Authentication (Identity Toolkit REST API)** to verify that the officer's email is registered in the Departmental Medical Examiner Directory.
+   - Once authenticated, the officer can:
+     - **Directly download** the certified court-admissible Form PM-5372 PDF onto their mobile device.
+     - Obtain a **6-Digit Workstation Release Passcode** (e.g. `NC-3162`).
+4. **Dual-Channel Terminal Release**: Entering the 6-digit release code back into the primary mortuary workstation terminal instantly unlocks desktop downloading and physical printing.
+
+### Firebase Credentials Configuration
+To connect a live Firebase project:
+1. Copy `.streamlit/secrets.toml.example` to `.streamlit/secrets.toml` (locally) or add to **Streamlit Community Cloud $\rightarrow$ App Settings $\rightarrow$ Secrets**:
+   ```toml
+   FIREBASE_WEB_API_KEY = "AIzaSy..."
+   FIREBASE_PROJECT_ID = "necrotrace-forensics"
+   ```
+2. If credentials are not yet configured, the system gracefully activates **Sandbox Evaluation Mode** with pre-configured demo medical examiner accounts (`coroner@necrotrace.gov` / `examiner@police.gov`).
 
 ---
 

@@ -6,3 +6,14 @@ env/
 venv/
 .DS_Store
 Thumbs.db
+
+# Secrets, Environment & Credentials (Never commit sensitive keys)
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+!.streamlit/secrets.toml.example
+*.pem
+*.key
+*serviceAccount*.json
+*credentials*.json

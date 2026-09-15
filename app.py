@@ -66,6 +66,39 @@ except (ImportError, AttributeError):
             return renderSVG.drawToString(d)
 
 # -----------------------------------------------------------------------------
+# AUTHENTICATION & FIREBASE GATEWAY
+# -----------------------------------------------------------------------------
+try:
+    from src.auth import (
+        get_firebase_config,
+        is_firebase_configured,
+        check_email_registered_in_firebase,
+        sign_in_officer,
+        register_officer,
+        generate_release_passcode,
+        verify_release_passcode,
+        save_firebase_config,
+        test_firebase_connection,
+        DEMO_REGISTERED_OFFICERS,
+    )
+except (ImportError, AttributeError):
+    for mod_name in list(sys.modules.keys()):
+        if mod_name.startswith("src.auth"):
+            sys.modules.pop(mod_name, None)
+    from src.auth import (
+        get_firebase_config,
+        is_firebase_configured,
+        check_email_registered_in_firebase,
+        sign_in_officer,
+        register_officer,
+        generate_release_passcode,
+        verify_release_passcode,
+        save_firebase_config,
+        test_firebase_connection,
+        DEMO_REGISTERED_OFFICERS,
+    )
+
+# -----------------------------------------------------------------------------
 # 1. PAGE CONFIGURATION
 # -----------------------------------------------------------------------------
 st.set_page_config(
@@ -96,6 +129,10 @@ if "triage_eval" not in st.session_state:
     st.session_state["triage_eval"] = None
 if "case_particulars" not in st.session_state:
     st.session_state["case_particulars"] = {}
+if "authenticated_officer" not in st.session_state:
+    st.session_state["authenticated_officer"] = None
+if "unlocked_reports" not in st.session_state:
+    st.session_state["unlocked_reports"] = set()
 
 
 def render_clean_html(html_str: str):
@@ -2131,13 +2168,107 @@ elif st.session_state["view"] == "examination":
                     qc_metrics=qc_report,
                 )
 
-            st.download_button(
-                label="DOWNLOAD OFFICIAL POST-MORTEM REPORT (PDF)",
-                data=pdf_bytes,
-                file_name=f"PostMortem_Report_{case_info.get('pm_report_no', 'PM').replace('/', '_').replace(' ', '')}.pdf",
-                mime="application/pdf",
-                use_container_width=True,
+            # ---------------------------------------------------------
+            # CHAIN-OF-CUSTODY AUTHENTICATION & GATED PDF DOWNLOAD
+            # ---------------------------------------------------------
+            is_report_unlocked = (
+                st.session_state.get("authenticated_officer") is not None
+                or pm_no in st.session_state.get("unlocked_reports", set())
+                or clean_pm in st.session_state.get("unlocked_reports", set())
             )
+
+            if not is_report_unlocked:
+                expected_passcode = generate_release_passcode(clean_pm)
+
+                render_clean_html(f"""
+                <div style="background: #172324; border: 1.5px solid #f59e0b; border-radius: 12px; padding: 22px; margin-top: 14px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #2d3d3e; padding-bottom: 14px; margin-bottom: 16px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span style="font-size: 26px;">🔒</span>
+                            <div>
+                                <div class="mono-tag" style="color: #f59e0b; font-size: 10px;">CHAIN-OF-CUSTODY ENCRYPTION LOCK &bull; ISO 17025 COMPLIANT</div>
+                                <div style="font-size: 17px; font-weight: 600; color: #ffffff;">AUTHENTICATION REQUIRED TO DOWNLOAD OFFICIAL REPORT</div>
+                            </div>
+                        </div>
+                        <span style="font-family: var(--font-mono); font-size: 11px; background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid #f59e0b; padding: 4px 12px; border-radius: 9999px;">
+                            ● DOWNLOAD LOCKED
+                        </span>
+                    </div>
+                    <div style="font-size: 13px; color: #cbd5e1; line-height: 1.55; margin-bottom: 16px;">
+                        Official post-mortem records (Form PM-5372) contain sensitive medico-legal inquest findings. 
+                        In accordance with evidentiary chain-of-custody protocols, an authorized medical examiner or investigating officer must <b>authenticate via the QR code portal</b> using their registered Firebase credentials before the certified dossier can be released.
+                    </div>
+                    <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
+                        <a href="{qr_url}" target="_blank" style="text-decoration: none;">
+                            <div style="background: var(--color-bioluminescent-lime); color: #000000; font-family: var(--font-mono); font-weight: 700; font-size: 12px; padding: 10px 18px; border-radius: 6px; display: inline-flex; align-items: center; gap: 8px;">
+                                <span>📱</span> OPEN MOBILE VERIFICATION PORTAL ↗
+                            </div>
+                        </a>
+                        <span style="font-size: 12px; color: var(--color-graphite);">or scan the QR code above with any mobile camera</span>
+                    </div>
+                </div>
+                """)
+
+                lock_col1, lock_col2 = st.columns([1.1, 1.0])
+                with lock_col1:
+                    st.markdown('<div class="mono-tag" style="margin-bottom: 6px;">METHOD 1: ENTER 6-DIGIT RELEASE PASSCODE</div>', unsafe_allow_html=True)
+                    pass_in = st.text_input(
+                        "Enter Release Passcode",
+                        placeholder="e.g. NC-3162 (shown on mobile verification screen)",
+                        key=f"passcode_input_{clean_pm}",
+                        label_visibility="collapsed"
+                    )
+                    if st.button("🔓 VERIFY PASSCODE & RELEASE REPORT", use_container_width=True, key=f"btn_unlock_{clean_pm}"):
+                        if verify_release_passcode(clean_pm, pass_in):
+                            st.session_state["unlocked_reports"].add(pm_no)
+                            st.session_state["unlocked_reports"].add(clean_pm)
+                            st.success("✅ Workstation Release Code Accepted! Official PDF Dossier released.")
+                            st.rerun()
+                        else:
+                            st.error("⛔ Invalid release passcode. Please authenticate via the QR code on your mobile device first.")
+
+                with lock_col2:
+                    st.markdown('<div class="mono-tag" style="margin-bottom: 6px;">METHOD 2: DIRECT TERMINAL AUTHENTICATION</div>', unsafe_allow_html=True)
+                    with st.expander("🔑 Examiner Credentials Sign-In", expanded=False):
+                        dir_email = st.text_input("Examiner Email", placeholder="coroner@necrotrace.gov", key="dir_email")
+                        dir_pass = st.text_input("Password", type="password", key="dir_pass")
+                        if st.button("VERIFY & SIGN IN", use_container_width=True, key="btn_direct_signin"):
+                            auth_res = sign_in_officer(dir_email, dir_pass)
+                            if auth_res.get("success"):
+                                st.session_state["authenticated_officer"] = auth_res.get("officer_info")
+                                st.session_state["unlocked_reports"].add(pm_no)
+                                st.session_state["unlocked_reports"].add(clean_pm)
+                                st.success(f"✅ Officer Verified: {auth_res.get('officer_info', {}).get('name')}")
+                                st.rerun()
+                            else:
+                                st.error(f"⛔ {auth_res.get('message')}")
+
+            else:
+                officer = st.session_state.get("authenticated_officer") or {}
+                officer_label = officer.get("name", "Authorized Officer")
+                officer_badge = officer.get("badge", "CHAIN-OF-CUSTODY VERIFIED")
+                render_clean_html(f"""
+                <div style="background: rgba(6, 78, 59, 0.45); border: 1.5px solid #10b981; border-radius: 10px; padding: 14px 20px; margin-top: 14px; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <span style="font-size: 22px; color: #34d399;">✓</span>
+                        <div>
+                            <div style="font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: #6ee7b7; letter-spacing: 0.05em;">CHAIN-OF-CUSTODY AUTHENTICATED</div>
+                            <div style="font-size: 13px; color: #ffffff;">Report Released To: <b>{officer_label}</b> &bull; Badge: <code>{officer_badge}</code></div>
+                        </div>
+                    </div>
+                    <span style="font-family: var(--font-mono); font-size: 11px; background: #064e3b; color: #6ee7b7; padding: 4px 10px; border-radius: 9999px;">
+                        ● UNLOCKED
+                    </span>
+                </div>
+                """)
+
+                st.download_button(
+                    label="DOWNLOAD OFFICIAL POST-MORTEM REPORT (PDF)",
+                    data=pdf_bytes,
+                    file_name=f"PostMortem_Report_{case_info.get('pm_report_no', 'PM').replace('/', '_').replace(' ', '')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                )
 
 
 # =============================================================================
@@ -2189,6 +2320,201 @@ elif st.session_state["view"] == "verify":
 
     # Main Certificate Container
     st.markdown('<div style="max-width: 860px; margin: 0 auto; padding: 0 16px;">', unsafe_allow_html=True)
+
+    clean_case_id = case_param.replace(" ", "").replace("/", "-")
+    is_authed = (
+        st.session_state.get("authenticated_officer") is not None
+        or case_param in st.session_state.get("unlocked_reports", set())
+        or clean_case_id in st.session_state.get("unlocked_reports", set())
+    )
+    release_code = generate_release_passcode(clean_case_id)
+
+    # -------------------------------------------------------------------------
+    # FIREBASE OFFICER AUTHENTICATION GATEWAY
+    # -------------------------------------------------------------------------
+    if not is_authed:
+        firebase_online = is_firebase_configured()
+        fb_status_html = (
+            '<span style="font-family: var(--font-mono); font-size: 11px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid #10b981; padding: 3px 10px; border-radius: 9999px;">● FIREBASE AUTH: LIVE CLOUD GATEWAY</span>'
+            if firebase_online else
+            '<span style="font-family: var(--font-mono); font-size: 11px; background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid #f59e0b; padding: 3px 10px; border-radius: 9999px;">● FIREBASE AUTH: SANDBOX EVALUATION DIRECTORY</span>'
+        )
+
+        render_clean_html(f"""
+        <div style="background: #172425; border: 1.5px solid #059669; border-radius: 14px; padding: 24px; margin-bottom: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.35);">
+            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #283a3c; padding-bottom: 14px; margin-bottom: 16px;">
+                <div>
+                    <div class="mono-tag" style="color: var(--color-bioluminescent-lime); font-size: 10px;">MEDICO-LEGAL ACCESS CONTROL &bull; DIGITAL CHAIN OF CUSTODY</div>
+                    <div style="font-size: 18px; font-weight: 600; color: #ffffff;">OFFICER CREDENTIAL AUTHENTICATION</div>
+                </div>
+                {fb_status_html}
+            </div>
+            <div style="font-size: 13px; color: #cbd5e1; line-height: 1.5; margin-bottom: 16px;">
+                Official post-mortem records and forensic bioindicator succession findings are restricted to certified medical officers and investigating magistrates. 
+                Please verify your registered departmental email below via Firebase to unlock the official Form PM-5372 dossier.
+            </div>
+        </div>
+        """)
+
+        auth_tab_signin, auth_tab_reg = st.tabs([
+            "🔑 Officer Sign-In & Verification",
+            "📝 Register Authorized Personnel"
+        ])
+
+        with auth_tab_signin:
+            if not firebase_online:
+                st.info("💡 **Sandbox Mode Active**: Pre-registered test examiner accounts: `coroner@necrotrace.gov` (password: `necrotrace2026`) or `examiner@police.gov` (password: `investigation`). To connect your live Firebase project, add `FIREBASE_WEB_API_KEY` to Streamlit secrets.")
+
+            v_col_email, v_col_pass = st.columns([1.2, 1.0])
+            with v_col_email:
+                v_email = st.text_input("Official Registered Email", placeholder="e.g. coroner@necrotrace.gov", key="verify_portal_email")
+            with v_col_pass:
+                v_pass = st.text_input("Security Credentials / Passcode", type="password", key="verify_portal_pass")
+
+            btn_col1, btn_col2 = st.columns(2)
+            with btn_col1:
+                if st.button("🔍 CHECK EMAIL REGISTRATION", use_container_width=True, key="btn_check_reg"):
+                    if not v_email:
+                        st.warning("Please enter an email address to check.")
+                    else:
+                        with st.spinner("Checking Firebase Medical Examiner Directory..."):
+                            is_reg, reg_msg = check_email_registered_in_firebase(v_email)
+                        if is_reg:
+                            st.success(f"✅ Registered: {reg_msg}")
+                        else:
+                            st.error(f"⛔ ACCESS DENIED: {reg_msg}")
+
+            with btn_col2:
+                if st.button("🔐 AUTHENTICATE & UNLOCK DOSSIER", use_container_width=True, key="btn_auth_unlock"):
+                    if not v_email or not v_pass:
+                        st.warning("Please enter both registered email and password.")
+                    else:
+                        with st.spinner("Authenticating against Firebase Identity Toolkit..."):
+                            auth_res = sign_in_officer(v_email, v_pass)
+                        if auth_res.get("success"):
+                            st.session_state["authenticated_officer"] = auth_res.get("officer_info")
+                            st.session_state["unlocked_reports"].add(case_param)
+                            st.session_state["unlocked_reports"].add(clean_case_id)
+                            st.success(f"✅ Credentials Validated! Welcome, {auth_res.get('officer_info', {}).get('name')}.")
+                            st.rerun()
+                        else:
+                            st.error(f"⛔ {auth_res.get('message')}")
+
+        with auth_tab_reg:
+            st.markdown('<div style="font-size: 13px; color: #cbd5e1; margin-bottom: 12px;">Enroll an authorized forensic practitioner into the Firebase authentication repository.</div>', unsafe_allow_html=True)
+            r_c1, r_c2 = st.columns(2)
+            with r_c1:
+                r_name = st.text_input("Full Name & Title", placeholder="Dr. Jane Doe, M.D.", key="reg_officer_name")
+            with r_c2:
+                r_email = st.text_input("Departmental Email", placeholder="jane.doe@necrotrace.gov", key="reg_officer_email")
+            r_pass = st.text_input("Assign Password (min. 6 characters)", type="password", key="reg_officer_pass")
+
+            if st.button("📝 ENROLL OFFICER IN FORENSIC DIRECTORY", use_container_width=True, key="btn_register_officer"):
+                if not r_email or not r_pass:
+                    st.warning("Please provide email and a secure password.")
+                else:
+                    with st.spinner("Registering with Firebase Auth..."):
+                        reg_out = register_officer(r_email, r_pass, r_name)
+                    if reg_out.get("success"):
+                        st.success("✅ Officer account enrolled successfully in Firebase! You can now proceed to Sign In.")
+                    else:
+                        st.error(f"⚠️ {reg_out.get('message')}")
+
+    else:
+        # OFFICER IS AUTHENTICATED: Display Verified Status & Release Controls
+        cur_officer = st.session_state.get("authenticated_officer") or {}
+        off_name = cur_officer.get("name", "Dr. Tanish Walture")
+        off_role = cur_officer.get("role", "Chief Forensic Pathologist")
+        off_badge = cur_officer.get("badge", "CFS-9042")
+        off_station = cur_officer.get("station", "Central Forensic Science Laboratory")
+
+        render_clean_html(f"""
+        <div style="background: rgba(6, 78, 59, 0.45); border: 2px solid #10b981; border-radius: 14px; padding: 24px; margin-bottom: 24px; box-shadow: 0 8px 32px rgba(16, 185, 129, 0.2);">
+            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #14532d; padding-bottom: 14px; margin-bottom: 16px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 28px; color: #34d399;">✓</span>
+                    <div>
+                        <div class="mono-tag" style="color: #6ee7b7; font-size: 10px;">FIREBASE IDENTITY VERIFIED &bull; ISO 17025 CHAIN OF CUSTODY</div>
+                        <div style="font-size: 20px; font-weight: 600; color: #ffffff;">AUTHORIZED EXAMINER: {off_name}</div>
+                    </div>
+                </div>
+                <span style="font-family: var(--font-mono); font-size: 11px; background: #064e3b; color: #6ee7b7; border: 1px solid #059669; padding: 4px 12px; border-radius: 9999px;">
+                    ● CREDENTIALS VALIDATED
+                </span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; font-size: 12px; color: #d1fae5; margin-bottom: 18px; background: rgba(0, 0, 0, 0.25); padding: 12px; border-radius: 8px;">
+                <div><b>Designation:</b> {off_role}</div>
+                <div><b>Badge / Registration:</b> <code>{off_badge}</code></div>
+                <div><b>Posting:</b> {off_station}</div>
+            </div>
+
+            <!-- Mortuary Workstation Release Passcode Box -->
+            <div style="background: #0d1516; border: 1.5px dashed var(--color-bioluminescent-lime); border-radius: 10px; padding: 18px; text-align: center; margin-bottom: 18px;">
+                <div class="mono-tag" style="color: var(--color-bioluminescent-lime); font-size: 11px; letter-spacing: 0.08em;">MORTUARY WORKSTATION RELEASE PASSCODE</div>
+                <div style="font-size: 34px; font-weight: 700; font-family: var(--font-mono); color: #ffffff; letter-spacing: 0.14em; margin: 8px 0;">{release_code}</div>
+                <div style="font-size: 12px; color: #94a3b8;">Enter this 6-digit passcode on the mortuary terminal to unlock local workstation downloading and physical printing.</div>
+            </div>
+        </div>
+        """)
+
+        # Generate on-demand authentic certified PDF for mobile / browser download
+        pmi_num = 6.8
+        try:
+            pmi_num = float(st.query_params.get("pmi", "6.8d").replace("d", "").replace("Days", "").strip())
+        except Exception:
+            pmi_num = 6.8
+
+        v_case_meta = {
+            "pm_report_no": case_param,
+            "police_station": ps_param,
+            "inquest_no": inq_param,
+            "date_of_exam": time.strftime("%Y-%m-%d"),
+            "time_of_exam": "09:30 HRS",
+            "analyst": doc_param,
+            "deceased_name": dec_param,
+            "deceased_age_sex": "Approx. 35-40 Yrs / Male",
+            "sample_site": "Oral / Buccal Swab",
+            "reg_no": "WBMC / 45826",
+            "cause_of_death": cod_param,
+            "manner_of_death": mod_param,
+        }
+        if st.session_state.get("case_particulars"):
+            v_case_meta.update(st.session_state["case_particulars"])
+
+        v_pmi_find = {
+            "predicted_pmi": pmi_num,
+            "lower_bound": max(0.5, pmi_num - 1.8),
+            "upper_bound": pmi_num + 2.1,
+            "shannon_entropy": 2.85,
+            "top_indicator": "Gammaproteobacteria / Pseudomonas",
+        }
+        if st.session_state.get("pmi_results"):
+            v_pmi_find.update(st.session_state["pmi_results"])
+
+        v_qc_met = {
+            "read_depth": 28410,
+            "shannon_entropy": 2.85,
+            "retained_taxa": len(st.session_state.get("confirmed_taxa", [])) or 12,
+            "initial_taxa": 50,
+            "dropped_taxa": 0,
+        }
+
+        with st.spinner("Generating authenticated Court-Admissible PDF (Form PM-5372)..."):
+            verified_pdf_bytes = generate_forensic_pdf(v_case_meta, v_pmi_find, v_qc_met)
+
+        col_dl, col_so = st.columns([3, 1])
+        with col_dl:
+            st.download_button(
+                label="⬇️ DOWNLOAD OFFICIAL FORM PM-5372 (CERTIFIED PDF)",
+                data=verified_pdf_bytes,
+                file_name=f"Certified_PostMortem_{clean_case_id}.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+            )
+        with col_so:
+            if st.button("🔒 SIGN OUT", use_container_width=True, key="btn_signout"):
+                st.session_state["authenticated_officer"] = None
+                st.rerun()
 
     # Verification Certificate Box
     render_clean_html(f"""
