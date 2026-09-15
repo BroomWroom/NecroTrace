@@ -69,10 +69,6 @@ except (ImportError, AttributeError):
 # -----------------------------------------------------------------------------
 # AUTHENTICATION & FIREBASE GATEWAY
 # -----------------------------------------------------------------------------
-for mod_name in list(sys.modules.keys()):
-    if mod_name.startswith("src.auth"):
-        sys.modules.pop(mod_name, None)
-
 from src.auth import (
     get_firebase_config,
     is_firebase_configured,

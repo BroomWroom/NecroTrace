@@ -59,35 +59,91 @@ def clear_active_officer_session():
     _ACTIVE_SERVER_SESSION.clear()
 
 
+# Official NecroTrace Live Firebase & Firestore Project Credentials
+DEFAULT_FIREBASE_PROJECT_ID = "necrotrace"
+DEFAULT_FIREBASE_WEB_API_KEY = "AIzaSyALDwaUmf8lagVqxNNzyguvUPNme1BKBfE"
+
+
 def get_firebase_config() -> Dict[str, str]:
     """
-    Retrieve Firebase Web API credentials safely from Streamlit secrets or environment.
-    Never raises an exception if secrets are missing.
+    Retrieve Firebase Web API credentials safely from Streamlit secrets, environment,
+    or production project defaults. Never raises an exception if secrets are missing.
     """
     api_key = ""
     project_id = ""
 
-    # Try reading from streamlit.secrets if running inside Streamlit
+    # 1. Try reading from streamlit.secrets if running inside Streamlit
     try:
         import streamlit as st
         if hasattr(st, "secrets"):
-            if "FIREBASE_WEB_API_KEY" in st.secrets:
-                api_key = str(st.secrets["FIREBASE_WEB_API_KEY"]).strip()
-            elif "firebase" in st.secrets and "web_api_key" in st.secrets["firebase"]:
-                api_key = str(st.secrets["firebase"]["web_api_key"]).strip()
+            # Direct flat keys
+            for k in ["FIREBASE_WEB_API_KEY", "firebase_web_api_key", "FIREBASE_API_KEY", "firebase_api_key", "apiKey", "API_KEY"]:
+                if k in st.secrets and str(st.secrets[k]).strip():
+                    api_key = str(st.secrets[k]).strip().strip('"').strip("'")
+                    break
 
-            if "FIREBASE_PROJECT_ID" in st.secrets:
-                project_id = str(st.secrets["FIREBASE_PROJECT_ID"]).strip()
-            elif "firebase" in st.secrets and "project_id" in st.secrets["firebase"]:
-                project_id = str(st.secrets["firebase"]["project_id"]).strip()
+            # Nested sections (e.g. [firebase] or [credentials])
+            for sec in ["firebase", "FIREBASE", "credentials", "default"]:
+                if not api_key and sec in st.secrets and isinstance(st.secrets[sec], (dict, st.runtime.secrets.Secrets)):
+                    sub = st.secrets[sec]
+                    for sub_k in ["web_api_key", "apiKey", "api_key", "key"]:
+                        if sub_k in sub and str(sub[sub_k]).strip():
+                            api_key = str(sub[sub_k]).strip().strip('"').strip("'")
+                            break
+
+            for k in ["FIREBASE_PROJECT_ID", "firebase_project_id", "PROJECT_ID", "project_id", "projectId"]:
+                if k in st.secrets and str(st.secrets[k]).strip():
+                    project_id = str(st.secrets[k]).strip().strip('"').strip("'")
+                    break
+
+            for sec in ["firebase", "FIREBASE", "credentials", "default"]:
+                if not project_id and sec in st.secrets and isinstance(st.secrets[sec], (dict, st.runtime.secrets.Secrets)):
+                    sub = st.secrets[sec]
+                    for sub_k in ["project_id", "projectId", "id"]:
+                        if sub_k in sub and str(sub[sub_k]).strip():
+                            project_id = str(sub[sub_k]).strip().strip('"').strip("'")
+                            break
     except Exception:
         pass
 
-    # Fallback to os.environ
+    # 2. Fallback to os.environ
     if not api_key:
-        api_key = os.environ.get("FIREBASE_WEB_API_KEY", "").strip()
+        for env_k in ["FIREBASE_WEB_API_KEY", "FIREBASE_API_KEY", "API_KEY"]:
+            val = os.environ.get(env_k, "").strip().strip('"').strip("'")
+            if val:
+                api_key = val
+                break
+
     if not project_id:
-        project_id = os.environ.get("FIREBASE_PROJECT_ID", "").strip()
+        for env_k in ["FIREBASE_PROJECT_ID", "PROJECT_ID", "FIREBASE_PROJECT"]:
+            val = os.environ.get(env_k, "").strip().strip('"').strip("'")
+            if val:
+                project_id = val
+                break
+
+    # 3. Direct inspection of local .streamlit/secrets.toml if file exists
+    if not api_key or not project_id:
+        try:
+            sec_file = os.path.join(os.getcwd(), ".streamlit", "secrets.toml")
+            if os.path.exists(sec_file):
+                with open(sec_file, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line_s = line.strip()
+                        if "=" in line_s and not line_s.startswith("#"):
+                            k, v = [x.strip() for x in line_s.split("=", 1)]
+                            v_clean = v.strip('"').strip("'")
+                            if ("API_KEY" in k.upper() or "APIKEY" in k.upper()) and not api_key:
+                                api_key = v_clean
+                            if "PROJECT" in k.upper() and not project_id:
+                                project_id = v_clean
+        except Exception:
+            pass
+
+    # 4. Production Default Fallback (ensures hosted app ALWAYS writes to live Firestore)
+    if not api_key:
+        api_key = DEFAULT_FIREBASE_WEB_API_KEY
+    if not project_id:
+        project_id = DEFAULT_FIREBASE_PROJECT_ID
 
     return {
         "api_key": api_key,
@@ -184,10 +240,10 @@ def check_email_registered_in_firebase(email: str) -> Tuple[bool, str]:
     """
     cfg = get_firebase_config()
     api_key = cfg.get("api_key", "")
+    clean_email = str(email or "").strip().lower()
 
     if not is_firebase_configured():
         # Evaluation Sandbox Check
-        clean_email = email.strip().lower()
         if clean_email in DEMO_REGISTERED_OFFICERS:
             return True, "Email found in Departmental Medical Examiner Registry (Sandbox Mode)."
         return False, "Email not found in Departmental Medical Examiner Registry."
@@ -195,7 +251,7 @@ def check_email_registered_in_firebase(email: str) -> Tuple[bool, str]:
     # Live Firebase Identity Toolkit API
     url = f"https://identitytoolkit.googleapis.com/v1/accounts:createAuthUri?key={api_key}"
     payload = {
-        "identifier": email.strip().lower(),
+        "identifier": clean_email,
         "continueUri": "https://necrotrace.streamlit.app",
     }
 
