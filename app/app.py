@@ -13,6 +13,8 @@ import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
+import base64
+import os
 import plotly.graph_objects as go
 
 from src.pipeline import NecroQuantileRegressor
@@ -478,17 +480,42 @@ SMOOTH_SCROLL_CONTROLLER_HTML = """
                 scrollContainer.style.setProperty('background-color', '#222f30', 'important');
             }
 
-            // Zero out all default Streamlit block container padding for edge-to-edge full bleed
-            const blockContainers = parentDoc.querySelectorAll('[data-testid="stMainBlockContainer"], .block-container, [data-testid="stMain"]');
+            const isExam = window.parent.location.search.includes('view=examination');
+
+            // Set container geometry based on active view
+            const blockContainers = parentDoc.querySelectorAll('[data-testid="stMainBlockContainer"], .block-container, div.stMainBlockContainer');
             blockContainers.forEach(function(el) {
-                el.style.setProperty('padding-top', '0px', 'important');
-                el.style.setProperty('padding-bottom', '0px', 'important');
-                el.style.setProperty('padding-left', '0px', 'important');
-                el.style.setProperty('padding-right', '0px', 'important');
-                el.style.setProperty('max-width', '100%', 'important');
-                el.style.setProperty('width', '100%', 'important');
-                el.style.setProperty('margin', '0px', 'important');
+                if (isExam) {
+                    el.style.setProperty('max-width', '880px', 'important');
+                    el.style.setProperty('width', '100%', 'important');
+                    el.style.setProperty('margin-left', 'auto', 'important');
+                    el.style.setProperty('margin-right', 'auto', 'important');
+                    el.style.setProperty('padding-left', '24px', 'important');
+                    el.style.setProperty('padding-right', '24px', 'important');
+                    el.style.setProperty('padding-top', '24px', 'important');
+                    el.style.setProperty('padding-bottom', '80px', 'important');
+                } else {
+                    el.style.setProperty('padding-top', '0px', 'important');
+                    el.style.setProperty('padding-bottom', '0px', 'important');
+                    el.style.setProperty('padding-left', '0px', 'important');
+                    el.style.setProperty('padding-right', '0px', 'important');
+                    el.style.setProperty('max-width', '100%', 'important');
+                    el.style.setProperty('width', '100%', 'important');
+                    el.style.setProperty('margin', '0px', 'important');
+                }
             });
+
+            // Center the main section wrapper on examination view
+            const mainSection = parentDoc.querySelector('section.main') || parentDoc.querySelector('[data-testid="stMain"]');
+            if (mainSection) {
+                if (isExam) {
+                    mainSection.style.setProperty('display', 'flex', 'important');
+                    mainSection.style.setProperty('flex-direction', 'column', 'important');
+                    mainSection.style.setProperty('align-items', 'center', 'important');
+                } else {
+                    mainSection.style.setProperty('display', 'block', 'important');
+                }
+            }
 
             // Smooth anchor links navigation via event delegation
             if (!parentWin.__smooth_scroll_delegated) {
@@ -595,6 +622,66 @@ def get_microbe_svg(morphology_type: str, gram_stain: str) -> str:
 # -----------------------------------------------------------------------------
 # 4. CACHED MODEL LOADER
 # -----------------------------------------------------------------------------
+
+def get_microbe_card_banner(taxon_id: str, common_name: str, morphology_type: str, gram_stain: str) -> str:
+    """
+    Renders the rich media banner for the microbial card matching Material Design specifications.
+    Checks for user-provided real images in assets/microbes/{taxon_id}.[png|jpg|jpeg|webp|svg].
+    If none found, renders a high-contrast geometric placeholder banner with circle + triangle.
+    """
+    exts = [".png", ".jpg", ".jpeg", ".webp", ".svg"]
+    found_asset = None
+    for ext in exts:
+        p = os.path.join("assets", "microbes", f"{taxon_id}{ext}")
+        if os.path.exists(p):
+            found_asset = p
+            break
+
+    if found_asset and not found_asset.endswith(".svg"):
+        try:
+            with open(found_asset, "rb") as img_file:
+                b64 = base64.b64encode(img_file.read()).decode("utf-8")
+            mime = "image/png" if found_asset.endswith(".png") else "image/jpeg"
+            return f'''<div style="width: 100%; height: 180px; overflow: hidden; background: #141c1d; border-bottom: 1px solid #2e3b3c;"><img src="data:{mime};base64,{b64}" style="width: 100%; height: 100%; object-fit: cover; display: block;" alt="{common_name}" /></div>'''
+        except Exception:
+            pass
+
+    # High-contrast geometric placeholder SVG matching user reference diagram
+    accent = "#b882ff" if "positive" in gram_stain.lower() else "#ff6b8b"
+    return f'''<div style="width: 100%; height: 180px; overflow: hidden; position: relative; background: #182324; border-bottom: 1px solid #2d3b3c;">
+        <svg viewBox="0 0 400 200" width="100%" height="100%" preserveAspectRatio="none" style="display: block;">
+            <defs>
+                <radialGradient id="grad_card_{taxon_id}" cx="50%" cy="50%" r="65%">
+                    <stop offset="0%" stop-color="#243335" stop-opacity="0.95"/>
+                    <stop offset="100%" stop-color="#141c1d" stop-opacity="1"/>
+                </radialGradient>
+                <pattern id="grid_card_{taxon_id}" width="20" height="20" patternUnits="userSpaceOnUse">
+                    <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#233031" stroke-width="0.5"/>
+                </pattern>
+            </defs>
+            <rect width="400" height="200" fill="url(#grad_card_{taxon_id})"/>
+            <rect width="400" height="200" fill="url(#grid_card_{taxon_id})"/>
+            
+            <!-- Reticle Crosshair -->
+            <line x1="160" y1="100" x2="240" y2="100" stroke="#2e3e40" stroke-width="1" stroke-dasharray="2 3"/>
+            <line x1="200" y1="60" x2="200" y2="140" stroke="#2e3e40" stroke-width="1" stroke-dasharray="2 3"/>
+            
+            <!-- Geometric Abstract Shapes (Material Placeholder: Circle + Triangle) -->
+            <circle cx="180" cy="102" r="44" fill="#ffffff" fill-opacity="0.10" stroke="#ffffff" stroke-opacity="0.16" stroke-width="1.2"/>
+            <polygon points="212,56 256,136 168,136" fill="#ffffff" fill-opacity="0.16" stroke="#ffffff" stroke-opacity="0.22" stroke-width="1.2"/>
+            <circle cx="200" cy="100" r="3.5" fill="{accent}"/>
+            
+            <!-- Top Status Badge -->
+            <rect x="250" y="14" width="136" height="22" rx="4" fill="#131b1c" fill-opacity="0.9" stroke="#354546" stroke-width="0.8"/>
+            <text x="318" y="29" font-family="'Roboto Mono', monospace" font-size="9" fill="#9db0b0" text-anchor="middle" letter-spacing="0.05em">IMAGE PENDING</text>
+            
+            <!-- Bottom Label Strip -->
+            <rect x="0" y="174" width="400" height="26" fill="#101617" fill-opacity="0.85"/>
+            <text x="16" y="191" font-family="'Roboto Mono', monospace" font-size="10" fill="#758888" letter-spacing="0.04em">1000x OIL IMMERSION // {morphology_type.upper().replace('_', ' ')}</text>
+            <text x="384" y="191" font-family="'Roboto Mono', monospace" font-size="10" fill="{accent}" text-anchor="end" letter-spacing="0.04em">{gram_stain.upper()}</text>
+        </svg>
+    </div>'''
+
 @st.cache_resource
 def load_trained_pipeline(artifacts_dir: str = "artifacts"):
     """Load serialized Quantile XGBoost models and feature schema."""
@@ -1112,10 +1199,17 @@ if st.session_state["view"] == "landing":
 # =============================================================================
 elif st.session_state["view"] == "examination":
 
-    # --- EXAMINATION VIEWPORT CONSTRAINTS & DARKROOM STYLING ---
+    # --- STRICT CENTERED LAYOUT (920px) & DARKROOM STYLING ---
     render_clean_html("""
     <style>
-    /* EXECUTIVE VIEWPORT WIDTH & MARGINS */
+    /* EXECUTIVE CENTERED VIEWPORT (CLOSER TO MIDDLE) */
+    div[data-testid="stAppViewContainer"] > section.main,
+    div[data-testid="stAppViewContainer"] .stMain {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+    }
+
     div[data-testid="stMainBlockContainer"],
     div[data-testid="stAppViewBlockContainer"],
     .main .block-container,
@@ -1123,14 +1217,14 @@ elif st.session_state["view"] == "examination":
     .block-container,
     div[class*="stMainBlockContainer"],
     div[class*="block-container"] {
-        max-width: 1180px !important;
+        max-width: 880px !important;
         width: 100% !important;
         margin-left: auto !important;
         margin-right: auto !important;
         padding-top: 24px !important;
         padding-bottom: 96px !important;
-        padding-left: clamp(24px, 4vw, 48px) !important;
-        padding-right: clamp(24px, 4vw, 48px) !important;
+        padding-left: 20px !important;
+        padding-right: 20px !important;
         box-sizing: border-box !important;
     }
 
@@ -1144,7 +1238,7 @@ elif st.session_state["view"] == "examination":
         border: 1px solid #364040 !important;
         border-radius: 12px !important;
         background: rgba(28, 38, 39, 0.45) !important;
-        padding: 28px 32px !important;
+        padding: 24px 28px !important;
         margin-bottom: 24px !important;
     }
 
@@ -1153,8 +1247,22 @@ elif st.session_state["view"] == "examination":
         border: 1px solid #2e3838 !important;
         border-radius: 8px !important;
         background: rgba(22, 30, 31, 0.6) !important;
-        padding: 20px 24px !important;
+        padding: 18px 20px !important;
         margin-bottom: 14px !important;
+    }
+
+    /* Media Card Layout (Matching User Reference Design) */
+    .taxa-media-card {
+        border: 1px solid #364040;
+        border-radius: 10px;
+        background: #182223;
+        overflow: hidden;
+        margin-bottom: 12px;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .taxa-media-card:hover {
+        border-color: #516263;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
     }
 
     /* Input & Selectbox Styling */
@@ -1233,13 +1341,13 @@ elif st.session_state["view"] == "examination":
     """
     render_clean_html(nav_exam_html)
 
-    # Title & Subtitle
+    # Title & Subtitle (Centered container)
     render_clean_html("""
-    <div style="margin-bottom: 32px;">
-        <h1 style="font-size: clamp(28px, 3.2vw, 38px); line-height: 1.15; letter-spacing: -0.02em; color: var(--color-paper); margin: 0 0 10px 0;">
+    <div style="margin-bottom: 30px;">
+        <h1 style="font-size: clamp(26px, 3.0vw, 36px); line-height: 1.15; letter-spacing: -0.02em; color: var(--color-paper); margin: 0 0 10px 0;">
             Medical Examiner Diagnostic Triage
         </h1>
-        <p style="font-size: 15px; color: var(--color-graphite); margin: 0; line-height: 1.45; max-width: 900px;">
+        <p style="font-size: 15px; color: var(--color-graphite); margin: 0; line-height: 1.45;">
             Autopsy particulars and morphological postmortem findings correlate directly with microbial ecological succession kinetics, synthesizing a compositional profile to predict quantile postmortem intervals with court-admissible error bounds.
         </p>
     </div>
@@ -1251,10 +1359,12 @@ elif st.session_state["view"] == "examination":
     with st.container(border=True):
         st.markdown('<div class="section-counter" style="margin-bottom: 20px;">01 / PATIENT & SCENE PARTICULARS</div>', unsafe_allow_html=True)
         
-        col_p1, col_p2, col_p3, col_p4 = st.columns(4)
+        col_p1, col_p2 = st.columns(2)
         with col_p1:
             deceased_name = st.text_input("Name of Deceased / Ref:", value="Unidentified Individual (Ref: Unknown #42)")
             age_val = st.text_input("Estimated Age:", value="Approx. 35 - 40 Years")
+            height_val = st.text_input("Height (approx):", value="172 cm")
+            ambient_temp = st.slider("Scene Temperature (°C):", min_value=5.0, max_value=42.0, value=23.5, step=0.5)
         with col_p2:
             sex_val = st.selectbox("Sex:", ["Male", "Female", "Indeterminate / Skeletal"], index=0)
             swab_site = st.selectbox(
@@ -1262,25 +1372,19 @@ elif st.session_state["view"] == "examination":
                 ["Oral Cavity / Mucosal Surface", "Nasal Mucosa", "Abdominal Surface", "Soil-Body Interface"],
                 index=0,
             )
-        with col_p3:
-            height_val = st.text_input("Height (approx):", value="172 cm")
             weight_val = st.text_input("Weight (approx):", value="68 kg")
-        with col_p4:
-            ambient_temp = st.slider("Scene Temperature (°C):", min_value=5.0, max_value=42.0, value=23.5, step=0.5)
             humidity_val = st.slider("Relative Humidity (%):", min_value=20.0, max_value=100.0, value=65.0, step=5.0)
 
-        st.markdown('<hr class="hairline-dark" style="margin: 24px 0;">', unsafe_allow_html=True)
+        st.markdown('<hr class="hairline-dark" style="margin: 20px 0;">', unsafe_allow_html=True)
 
         # Administrative Medico-Legal Identifiers
         st.markdown('<div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-graphite); margin-bottom: 12px; letter-spacing: 0.05em; text-transform: uppercase;">ADMINISTRATIVE DOSSIER IDENTIFIERS</div>', unsafe_allow_html=True)
-        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+        col_m1, col_m2 = st.columns(2)
         with col_m1:
             pm_report_no = st.text_input("Post Mortem Report No:", value="PM-619 / 2026")
-        with col_m2:
             police_station = st.text_input("Police Station (P.S.):", value="New Township P.S.")
-        with col_m3:
+        with col_m2:
             inquest_no = st.text_input("Inquest Number:", value="14 / 2026")
-        with col_m4:
             analyst_name = st.text_input("Examining Medical Officer:", value="Dr. Tanish Walture, M.D. (WBMC / 45826)")
 
     # -------------------------------------------------------------
@@ -1289,14 +1393,14 @@ elif st.session_state["view"] == "examination":
     with st.container(border=True):
         st.markdown('<div class="section-counter" style="margin-bottom: 16px;">02 / MORPHOLOGICAL SIGNS AUTOPSY INSPECTION</div>', unsafe_allow_html=True)
         st.markdown("""
-        <div style="font-size: 14px; color: var(--color-graphite); margin-bottom: 24px; line-height: 1.45;">
+        <div style="font-size: 14px; color: var(--color-graphite); margin-bottom: 22px; line-height: 1.45;">
             Record clinical postmortem decomposition signs. The succession engine aligns physical observations with microbial chronometers. Review the real-time visual inspection guides below for autopsy palpation checkpoints and physical appearance.
         </div>
         """, unsafe_allow_html=True)
 
         # Panel 1: Rigor Mortis Status
         with st.container(border=True):
-            r_col1, r_col2 = st.columns([1.1, 0.9])
+            r_col1, r_col2 = st.columns([1.05, 0.95])
             with r_col1:
                 st.markdown('<div style="font-size: 15px; font-weight: 500; color: var(--color-paper); margin-bottom: 4px;">1. Rigor Mortis Status</div>', unsafe_allow_html=True)
                 st.caption(MORPHOLOGICAL_SIGN_GUIDES["rigor_mortis"]["description"])
@@ -1311,13 +1415,13 @@ elif st.session_state["view"] == "examination":
                 r_info = MORPHOLOGICAL_SIGN_GUIDES["rigor_mortis"]["stages"][rigor_opt]
                 render_clean_html(f"""
                 <div class="symptom-visual-box">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                         <span style="font-family: var(--font-mono); font-size: 11px; font-weight: 500; color: {r_info['severity_color']}; border: 1px solid {r_info['severity_color']}; padding: 2px 8px; border-radius: 4px;">
                             {r_info['badge']}
                         </span>
                         <span style="font-family: var(--font-mono); font-size: 11px; color: var(--color-graphite);">{r_info['phase_tag']}</span>
                     </div>
-                    <div style="font-size: 13px; color: var(--color-paper); line-height: 1.4; margin-bottom: 10px;">
+                    <div style="font-size: 13px; color: var(--color-paper); line-height: 1.4; margin-bottom: 8px;">
                         <b>Autopsy Appearance:</b> {r_info['appearance']}
                     </div>
                     <div style="font-size: 12px; color: #9bb0b1; line-height: 1.35; margin-bottom: 6px;">
@@ -1331,7 +1435,7 @@ elif st.session_state["view"] == "examination":
 
         # Panel 2: Abdominal Distension & Bloat
         with st.container(border=True):
-            b_col1, b_col2 = st.columns([1.1, 0.9])
+            b_col1, b_col2 = st.columns([1.05, 0.95])
             with b_col1:
                 st.markdown('<div style="font-size: 15px; font-weight: 500; color: var(--color-paper); margin-bottom: 4px;">2. Abdominal Distension & Bloat</div>', unsafe_allow_html=True)
                 st.caption(MORPHOLOGICAL_SIGN_GUIDES["bloat"]["description"])
@@ -1346,13 +1450,13 @@ elif st.session_state["view"] == "examination":
                 b_info = MORPHOLOGICAL_SIGN_GUIDES["bloat"]["stages"][bloat_opt]
                 render_clean_html(f"""
                 <div class="symptom-visual-box">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                         <span style="font-family: var(--font-mono); font-size: 11px; font-weight: 500; color: {b_info['severity_color']}; border: 1px solid {b_info['severity_color']}; padding: 2px 8px; border-radius: 4px;">
                             {b_info['badge']}
                         </span>
                         <span style="font-family: var(--font-mono); font-size: 11px; color: var(--color-graphite);">{b_info['phase_tag']}</span>
                     </div>
-                    <div style="font-size: 13px; color: var(--color-paper); line-height: 1.4; margin-bottom: 10px;">
+                    <div style="font-size: 13px; color: var(--color-paper); line-height: 1.4; margin-bottom: 8px;">
                         <b>Autopsy Appearance:</b> {b_info['appearance']}
                     </div>
                     <div style="font-size: 12px; color: #9bb0b1; line-height: 1.35; margin-bottom: 6px;">
@@ -1366,7 +1470,7 @@ elif st.session_state["view"] == "examination":
 
         # Panel 3: Skin Discoloration & Vascular Marbling
         with st.container(border=True):
-            d_col1, d_col2 = st.columns([1.1, 0.9])
+            d_col1, d_col2 = st.columns([1.05, 0.95])
             with d_col1:
                 st.markdown('<div style="font-size: 15px; font-weight: 500; color: var(--color-paper); margin-bottom: 4px;">3. Skin Discoloration & Vascular Marbling</div>', unsafe_allow_html=True)
                 st.caption(MORPHOLOGICAL_SIGN_GUIDES["discoloration"]["description"])
@@ -1381,13 +1485,13 @@ elif st.session_state["view"] == "examination":
                 d_info = MORPHOLOGICAL_SIGN_GUIDES["discoloration"]["stages"][discolor_opt]
                 render_clean_html(f"""
                 <div class="symptom-visual-box">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                         <span style="font-family: var(--font-mono); font-size: 11px; font-weight: 500; color: {d_info['severity_color']}; border: 1px solid {d_info['severity_color']}; padding: 2px 8px; border-radius: 4px;">
                             {d_info['badge']}
                         </span>
                         <span style="font-family: var(--font-mono); font-size: 11px; color: var(--color-graphite);">{d_info['phase_tag']}</span>
                     </div>
-                    <div style="font-size: 13px; color: var(--color-paper); line-height: 1.4; margin-bottom: 10px;">
+                    <div style="font-size: 13px; color: var(--color-paper); line-height: 1.4; margin-bottom: 8px;">
                         <b>Autopsy Appearance:</b> {d_info['appearance']}
                     </div>
                     <div style="font-size: 12px; color: #9bb0b1; line-height: 1.35; margin-bottom: 6px;">
@@ -1401,7 +1505,7 @@ elif st.session_state["view"] == "examination":
 
         # Panel 4: Purge Fluid & Natural Orifices
         with st.container(border=True):
-            pu_col1, pu_col2 = st.columns([1.1, 0.9])
+            pu_col1, pu_col2 = st.columns([1.05, 0.95])
             with pu_col1:
                 st.markdown('<div style="font-size: 15px; font-weight: 500; color: var(--color-paper); margin-bottom: 4px;">4. Purge Fluid & Natural Orifices</div>', unsafe_allow_html=True)
                 st.caption(MORPHOLOGICAL_SIGN_GUIDES["purge_fluid"]["description"])
@@ -1416,13 +1520,13 @@ elif st.session_state["view"] == "examination":
                 pu_info = MORPHOLOGICAL_SIGN_GUIDES["purge_fluid"]["stages"][purge_opt]
                 render_clean_html(f"""
                 <div class="symptom-visual-box">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                         <span style="font-family: var(--font-mono); font-size: 11px; font-weight: 500; color: {pu_info['severity_color']}; border: 1px solid {pu_info['severity_color']}; padding: 2px 8px; border-radius: 4px;">
                             {pu_info['badge']}
                         </span>
                         <span style="font-family: var(--font-mono); font-size: 11px; color: var(--color-graphite);">{pu_info['phase_tag']}</span>
                     </div>
-                    <div style="font-size: 13px; color: var(--color-paper); line-height: 1.4; margin-bottom: 10px;">
+                    <div style="font-size: 13px; color: var(--color-paper); line-height: 1.4; margin-bottom: 8px;">
                         <b>Autopsy Appearance:</b> {pu_info['appearance']}
                     </div>
                     <div style="font-size: 12px; color: #9bb0b1; line-height: 1.35; margin-bottom: 6px;">
@@ -1436,7 +1540,7 @@ elif st.session_state["view"] == "examination":
 
         # Panel 5: Entomology & Maggot Colonization
         with st.container(border=True):
-            m_col1, m_col2 = st.columns([1.1, 0.9])
+            m_col1, m_col2 = st.columns([1.05, 0.95])
             with m_col1:
                 st.markdown('<div style="font-size: 15px; font-weight: 500; color: var(--color-paper); margin-bottom: 4px;">5. Entomology & Maggot Colonization</div>', unsafe_allow_html=True)
                 st.caption(MORPHOLOGICAL_SIGN_GUIDES["maggot_activity"]["description"])
@@ -1451,13 +1555,13 @@ elif st.session_state["view"] == "examination":
                 m_info = MORPHOLOGICAL_SIGN_GUIDES["maggot_activity"]["stages"][maggots_opt]
                 render_clean_html(f"""
                 <div class="symptom-visual-box">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                         <span style="font-family: var(--font-mono); font-size: 11px; font-weight: 500; color: {m_info['severity_color']}; border: 1px solid {m_info['severity_color']}; padding: 2px 8px; border-radius: 4px;">
                             {m_info['badge']}
                         </span>
                         <span style="font-family: var(--font-mono); font-size: 11px; color: var(--color-graphite);">{m_info['phase_tag']}</span>
                     </div>
-                    <div style="font-size: 13px; color: var(--color-paper); line-height: 1.4; margin-bottom: 10px;">
+                    <div style="font-size: 13px; color: var(--color-paper); line-height: 1.4; margin-bottom: 8px;">
                         <b>Autopsy Appearance:</b> {m_info['appearance']}
                     </div>
                     <div style="font-size: 12px; color: #9bb0b1; line-height: 1.35; margin-bottom: 6px;">
@@ -1498,63 +1602,74 @@ elif st.session_state["view"] == "examination":
         """)
 
     # -------------------------------------------------------------
-    # STEP 3: AUTO-SUGGESTED MICROBIAL BIOINDICATORS (VISUAL GUIDES)
+    # STEP 3: AUTO-SUGGESTED MICROBIAL BIOINDICATORS (RICH MEDIA CARDS)
     # -------------------------------------------------------------
     with st.container(border=True):
-        st.markdown('<div class="section-counter" style="margin-bottom: 16px;">03 / CONFIRMED MICROBIAL BIOINDICATORS & VISUAL GUIDES</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-counter" style="margin-bottom: 16px;">03 / CONFIRMED MICROBIAL BIOINDICATORS & RICH MEDIA</div>', unsafe_allow_html=True)
         st.markdown("""
         <div style="font-size: 14px; color: var(--color-graphite); margin-bottom: 24px; line-height: 1.45;">
-            Microbial succession taxonomy aligned with your autopsy observations. Every diagnostic taxon includes its microscopic cell morphology, natural habitat, and biochemical decomposition role. Check the bioindicators verified by swab testing:
+            Microbial succession taxonomy aligned with your autopsy observations. Each card presents high-magnification microscopy placeholder imagery, Gram-stain classification, and biochemical mechanisms. Confirm the bioindicators verified by swab testing:
         </div>
         """, unsafe_allow_html=True)
 
         suggested_list = triage_eval["suggested_bioindicators"]
         selected_taxa_current = []
 
-        # Display Candidate Taxa in a 2-Column Grid
+        # Display Candidate Taxa in a 2-Column Grid of Rich Media Cards (Matching User Reference)
         col_t1, col_t2 = st.columns(2)
         for i, item in enumerate(suggested_list):
             target_col = col_t1 if (i % 2 == 0) else col_t2
             with target_col:
                 rec_badge = (
-                    '<span style="font-family: var(--font-mono); font-size: 10px; background: rgba(206, 247, 158, 0.15); color: var(--color-bioluminescent-lime); border: 1px solid var(--color-bioluminescent-lime); padding: 2px 7px; border-radius: 4px;">RECOMMENDED BIOINDICATOR</span>'
+                    '<span style="font-family: var(--font-mono); font-size: 10px; background: rgba(206, 247, 158, 0.15); color: var(--color-bioluminescent-lime); border: 1px solid var(--color-bioluminescent-lime); padding: 2px 7px; border-radius: 4px;">RECOMMENDED</span>'
                     if item["is_recommended"] else ""
                 )
                 gram_class = "gram-badge-pos" if "positive" in item.get("gram_stain", "").lower() else "gram-badge-neg"
-                microbe_svg = get_microbe_svg(item.get("morphology_type", "bacilli"), item.get("gram_stain", "Gram-positive"))
+                banner_html = get_microbe_card_banner(
+                    item["taxon_id"],
+                    item["common_name"],
+                    item.get("morphology_type", "bacilli"),
+                    item.get("gram_stain", "Gram-positive"),
+                )
 
                 card_html = f"""
-                <div class="taxa-visual-card">
-                    <div style="display: flex; gap: 14px; margin-bottom: 12px; align-items: flex-start;">
-                        <div style="flex-shrink: 0;">
-                            {microbe_svg}
+                <div class="taxa-media-card">
+                    <!-- Rich Media Header (Placeholder Image Banner) -->
+                    {banner_html}
+                    
+                    <!-- Supporting Text Area -->
+                    <div style="padding: 16px 18px 14px 18px;">
+                        <!-- Title goes here -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
+                            <span style="font-size: 16px; color: var(--color-paper); font-weight: 500;">
+                                <i>{item['common_name']}</i>
+                            </span>
+                            {rec_badge}
                         </div>
-                        <div style="flex-grow: 1;">
-                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; flex-wrap: wrap; gap: 6px;">
-                                <span style="font-size: 15px; color: var(--color-paper); font-weight: 500;">
-                                    <i>{item['common_name']}</i>
-                                </span>
-                                {rec_badge}
-                            </div>
-                            <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;">
-                                <span class="{gram_class}">{item.get('gram_stain', 'Gram-positive')}</span>
-                                <span style="font-family: var(--font-mono); font-size: 11px; background: rgba(77, 87, 87, 0.35); color: var(--color-lichen); padding: 2px 7px; border-radius: 4px; border: 1px solid var(--color-graphite);">{item.get('peak_window', '')}</span>
-                                <span style="font-family: var(--font-mono); font-size: 11px; color: #8fa0a0;">{item.get('evidence_tier', '')}</span>
-                            </div>
-                            <div style="font-size: 12px; color: #9eb0b0; margin-bottom: 4px;">
-                                <b>Habitat / Niche:</b> {item.get('habitat', '')}
-                            </div>
+                        
+                        <!-- Secondary text (Gram & Window Badges) -->
+                        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px;">
+                            <span class="{gram_class}">{item.get('gram_stain', 'Gram-positive')}</span>
+                            <span style="font-family: var(--font-mono); font-size: 11px; background: rgba(77, 87, 87, 0.35); color: var(--color-lichen); padding: 2px 7px; border-radius: 4px; border: 1px solid var(--color-graphite);">{item.get('peak_window', '')}</span>
+                            <span style="font-family: var(--font-mono); font-size: 11px; color: #8fa0a0;">{item.get('evidence_tier', '')}</span>
                         </div>
-                    </div>
-                    <div style="font-size: 12px; color: #d0dede; line-height: 1.4; margin-bottom: 8px; background: rgba(0,0,0,0.25); padding: 10px 14px; border-radius: 6px; border-left: 2px solid var(--color-graphite);">
-                        <b>Biochemical Mechanism:</b> {item.get('biochemical_action', item['role'])}
-                    </div>
-                    <div style="font-size: 11px; color: var(--color-graphite); line-height: 1.35; margin-bottom: 8px;">
-                        <b>Cell Morphology:</b> {item.get('morphology_desc', item['role'])}
+                        
+                        <!-- Supporting text description -->
+                        <div style="font-size: 12.5px; color: #d0dede; line-height: 1.45; margin-bottom: 10px; background: rgba(0,0,0,0.25); padding: 10px 14px; border-radius: 6px; border-left: 2px solid var(--color-graphite);">
+                            <b>Biochemical Action:</b> {item.get('biochemical_action', item['role'])}
+                        </div>
+                        <div style="font-size: 11.5px; color: #9eb0b0; line-height: 1.35; margin-bottom: 6px;">
+                            <b>Habitat / Niche:</b> {item.get('habitat', '')}
+                        </div>
+                        <div style="font-size: 11px; color: var(--color-graphite); line-height: 1.35;">
+                            <b>Cell Morphology:</b> {item.get('morphology_desc', item['role'])}
+                        </div>
                     </div>
                 </div>
                 """
                 render_clean_html(card_html)
+                
+                # Action area: Confirmation checkbox
                 is_checked = st.checkbox(
                     f"Confirm {item['common_name']} ({item['stage']})",
                     value=item["is_recommended"],
@@ -1563,7 +1678,7 @@ elif st.session_state["view"] == "examination":
                 )
                 if is_checked:
                     selected_taxa_current.append(item["taxon_id"])
-                st.markdown("<div style='margin-bottom: 18px;'></div>", unsafe_allow_html=True)
+                st.markdown("<div style='margin-bottom: 22px;'></div>", unsafe_allow_html=True)
 
         st.markdown("<div style='margin-top: 8px;'></div>", unsafe_allow_html=True)
 
