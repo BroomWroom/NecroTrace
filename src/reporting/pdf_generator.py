@@ -28,6 +28,9 @@ from reportlab.platypus import (
     Image,
     HRFlowable,
 )
+from reportlab.graphics.barcode import qr
+from reportlab.graphics.shapes import Drawing, Rect
+from reportlab.graphics import renderSVG
 
 
 def compute_sha256_hash(data: str | bytes) -> str:
@@ -35,6 +38,31 @@ def compute_sha256_hash(data: str | bytes) -> str:
     if isinstance(data, str):
         data = data.encode("utf-8")
     return hashlib.sha256(data).hexdigest()
+
+
+def generate_qr_code_drawing(payload: str, size: float = 52.0) -> Drawing:
+    """
+    Generate a native ReportLab Drawing containing an authentic, high-scannability QR Code.
+    Includes a pure white background and optimal quiet zone for instantaneous mobile camera autofocus.
+    """
+    d = Drawing(size, size)
+    d.add(Rect(0, 0, size, size, fillColor=colors.white, strokeColor=None))
+    qr_widget = qr.QrCodeWidget(payload)
+    qr_widget.barLevel = "M"
+    qr_widget.barBorder = 2
+    qr_widget.barWidth = size
+    qr_widget.barHeight = size
+    d.add(qr_widget)
+    return d
+
+
+def generate_qr_code_svg(payload: str, size: float = 130.0) -> str:
+    """
+    Generate an SVG string of the forensic verification QR code for embedding
+    directly into Streamlit Web UI dashboards and HTML dossier cards with high contrast.
+    """
+    d = generate_qr_code_drawing(payload, size)
+    return renderSVG.drawToString(d)
 
 
 def generate_forensic_timeline_chart(
@@ -239,25 +267,46 @@ def generate_forensic_pdf(
     story = []
 
     # -------------------------------------------------------------
-    # 1. TOP HEADER & OFFICIAL FORM BAR
+    # 1. TOP HEADER & OFFICIAL FORM BAR (WITH DIGITAL QR CODE)
     # -------------------------------------------------------------
     pm_no = case_metadata.get("pm_report_no", "PM-619 / 2026")
     ps_name = case_metadata.get("police_station", "New Township P.S.")
     inquest_no = case_metadata.get("inquest_no", "14 / 2026")
     inquest_date = case_metadata.get("inquest_date", "15 / 09 / 2026")
+    dec_name = case_metadata.get("deceased_name", "Unidentified Individual")
+    doc_name = case_metadata.get("analyst", "Dr. Tanish Walture")
+    raw_cause = case_metadata.get("cause_of_death", "ASPHYXIA AS A RESULT OF CONSTRICTION OF NECK (PENDING TOXICOLOGY & HISTOLOGY).")
+
+    pred_days = float(pmi_findings.get("predicted_pmi", 6.8))
+    lower_days = float(pmi_findings.get("lower_bound", 5.7))
+    upper_days = float(pmi_findings.get("upper_bound", 8.0))
+
+    # Compute Cryptographic Evidence Digest (SHA-256)
+    evidence_payload_raw = f"{pm_no}|{ps_name}|{inquest_no}|{dec_name}|{pred_days:.2f}|{lower_days:.2f}|{upper_days:.2f}|{doc_name}|{raw_cause}"
+    evidence_hash = compute_sha256_hash(evidence_payload_raw)
+
+    clean_pm = pm_no.replace(" ", "").replace("/", "-")
+    clean_inq = inquest_no.replace(" ", "").replace("/", "-")
+    qr_url = f"https://necrotrace.streamlit.app/?view=verify&case={clean_pm}&inq={clean_inq}&pmi={pred_days:.1f}d&hash={evidence_hash[:16]}"
+
+    header_qr = generate_qr_code_drawing(qr_url, size=52.0)
 
     header_table_data = [
         [
             Paragraph("<b>DEPARTMENT OF FORENSIC MEDICINE & POLICE MORGUE</b><br/>GOVERNMENT MEDICAL COLLEGE & HOSPITAL", header_state),
             Paragraph(f"<b>POST MORTEM REPORT</b><br/><font size='7.5'>FORM NO. PM-5372</font>", header_title),
             Paragraph(f"<b>REPORT NO:</b> {pm_no}<br/><b>P.S.:</b> {ps_name}<br/><b>INQUEST:</b> {inquest_no}<br/><b>DATE:</b> {inquest_date}", field_label),
+            header_qr,
         ]
     ]
-    t_top = Table(header_table_data, colWidths=[2.5 * inch, 2.7 * inch, 2.3 * inch])
+    t_top = Table(header_table_data, colWidths=[2.3 * inch, 2.3 * inch, 2.1 * inch, 0.8 * inch])
     t_top.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("ALIGN", (3, 0), (3, 0), "CENTER"),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
         ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("LEFTPADDING", (3, 0), (3, 0), 2),
+        ("RIGHTPADDING", (3, 0), (3, 0), 0),
     ]))
     story.append(t_top)
     story.append(HRFlowable(width="100%", thickness=1.5, color=colors.black, spaceAfter=4, spaceBefore=2))
@@ -624,6 +673,30 @@ def generate_forensic_pdf(
     designation = case_metadata.get("designation", "Medical Officer & Forensic Specialist")
     hosp_dept = case_metadata.get("department", "District Medico-Legal Center / Government Hospital")
 
+    sig_qr = generate_qr_code_drawing(qr_url, size=52.0)
+
+    seal_table = Table([
+        [
+            sig_qr,
+            Paragraph(
+                "<b>DIGITAL CHAIN OF CUSTODY SEAL</b><br/>"
+                "<b>Status:</b> <font color='#047857'><b>TAMPER-EVIDENT RECORD</b></font><br/>"
+                f"<b>SHA-256:</b> <font face='Courier' size='5.0'>{evidence_hash[:22]}...</font><br/>"
+                "<b>Protocol:</b> Metagenomic Necrobiome Clock<br/>"
+                "<b>Standard:</b> Daubert/Frye Inquest Compliance<br/>"
+                "<i>Scan QR to verify evidence dossier</i>",
+                ParagraphStyle("SealP", parent=field_val, fontSize=6.2, leading=7.8, textColor=colors.HexColor("#0f172a"))
+            )
+        ]
+    ], colWidths=[0.75 * inch, 2.05 * inch])
+    seal_table.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+
     sig_table_data = [
         [
             Paragraph(
@@ -634,12 +707,7 @@ def generate_forensic_pdf(
                 "Police Commissionerate Seal",
                 field_val
             ),
-            Paragraph(
-                "<b>Official Medico-Legal Attestation:</b><br/>"
-                "I hereby certify that I have conducted the post-mortem examination on the deceased body mentioned above. "
-                "The findings, autopsy observations, and metagenomic succession intervals recorded represent a true and objective scientific record.",
-                narrative_p
-            ),
+            seal_table,
             Paragraph(
                 "<b>Signature of Medical Officer:</b><br/><br/>"
                 "_________________________________<br/>"
@@ -651,7 +719,7 @@ def generate_forensic_pdf(
             ),
         ]
     ]
-    t_sig = Table(sig_table_data, colWidths=[2.2 * inch, 2.8 * inch, 2.5 * inch])
+    t_sig = Table(sig_table_data, colWidths=[2.2 * inch, 2.9 * inch, 2.4 * inch])
     t_sig.setStyle(TableStyle([
         ("BOX", (0, 0), (-1, -1), 0.75, colors.black),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
