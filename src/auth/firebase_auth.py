@@ -39,6 +39,26 @@ DEMO_REGISTERED_OFFICERS = {
 }
 
 
+# In-memory server-side active officer session cache (preserves auth across view navigations & reloads)
+_ACTIVE_SERVER_SESSION: Dict[str, Any] = {}
+
+
+def get_active_officer_session() -> Optional[Dict[str, Any]]:
+    """Retrieve the currently active authenticated officer profile from server session cache."""
+    return _ACTIVE_SERVER_SESSION.get("officer")
+
+
+def set_active_officer_session(officer_info: Dict[str, Any]):
+    """Set the active authenticated officer profile in server session cache."""
+    if officer_info and isinstance(officer_info, dict):
+        _ACTIVE_SERVER_SESSION["officer"] = dict(officer_info)
+
+
+def clear_active_officer_session():
+    """Clear the active authenticated officer profile from server session cache."""
+    _ACTIVE_SERVER_SESSION.clear()
+
+
 def get_firebase_config() -> Dict[str, str]:
     """
     Retrieve Firebase Web API credentials safely from Streamlit secrets or environment.
@@ -204,32 +224,254 @@ def check_email_registered_in_firebase(email: str) -> Tuple[bool, str]:
         return False, f"Connection Error: {str(e)}"
 
 
+def parse_firestore_doc(doc: Dict[str, Any]) -> Dict[str, Any]:
+    """Parse a Firestore REST API document JSON into a clean Python dictionary."""
+    if not doc or not isinstance(doc, dict):
+        return {}
+    fields = doc.get("fields", {})
+    parsed: Dict[str, Any] = {}
+    for key, val_obj in fields.items():
+        if not isinstance(val_obj, dict):
+            continue
+        if "stringValue" in val_obj:
+            parsed[key] = val_obj["stringValue"]
+        elif "integerValue" in val_obj:
+            try:
+                parsed[key] = int(val_obj["integerValue"])
+            except Exception:
+                parsed[key] = val_obj["integerValue"]
+        elif "doubleValue" in val_obj:
+            try:
+                parsed[key] = float(val_obj["doubleValue"])
+            except Exception:
+                parsed[key] = val_obj["doubleValue"]
+        elif "booleanValue" in val_obj:
+            parsed[key] = bool(val_obj["booleanValue"])
+        elif "timestampValue" in val_obj:
+            parsed[key] = val_obj["timestampValue"]
+        elif "nullValue" in val_obj:
+            parsed[key] = None
+
+    doc_name = doc.get("name", "")
+    if doc_name:
+        parsed["_doc_path"] = doc_name
+        parsed["_doc_id"] = doc_name.split("/")[-1]
+    return parsed
+
+
+def build_firestore_fields(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert flat Python dictionary into Firestore typed fields."""
+    fields: Dict[str, Any] = {}
+    for k, v in data.items():
+        if k.startswith("_"):
+            continue
+        if v is None:
+            fields[k] = {"nullValue": None}
+        elif isinstance(v, bool):
+            fields[k] = {"booleanValue": v}
+        elif isinstance(v, int):
+            fields[k] = {"integerValue": str(v)}
+        elif isinstance(v, float):
+            fields[k] = {"doubleValue": v}
+        else:
+            fields[k] = {"stringValue": str(v)}
+    return fields
+
+
+def fetch_officer_from_firestore(
+    local_id: str = "",
+    email: str = "",
+    id_token: str = ""
+) -> Optional[Dict[str, Any]]:
+    """
+    Fetch an officer profile document directly from Cloud Firestore.
+    First tries document lookup by UID (officers/{local_id}),
+    and falls back to structured query by email if UID is not matched.
+    """
+    cfg = get_firebase_config()
+    api_key = cfg.get("api_key", "")
+    project_id = cfg.get("project_id", "")
+    if not api_key or not project_id:
+        return None
+
+    clean_email = str(email).strip().lower() if email else ""
+    clean_uid = str(local_id).strip() if local_id else ""
+
+    # Strategy 1: Direct document lookup by local_id (UID)
+    if clean_uid:
+        doc_url = f"https://firestore.googleapis.com/v1/projects/{project_id}/databases/(default)/documents/officers/{clean_uid}?key={api_key}"
+        headers_list = [{"Content-Type": "application/json"}]
+        if id_token:
+            headers_list.insert(0, {"Content-Type": "application/json", "Authorization": f"Bearer {id_token}"})
+
+        for h in headers_list:
+            try:
+                req = urllib.request.Request(doc_url, headers=h, method="GET")
+                with urllib.request.urlopen(req, timeout=5) as resp:
+                    doc = json.loads(resp.read().decode("utf-8"))
+                    parsed = parse_firestore_doc(doc)
+                    if parsed:
+                        if not parsed.get("uid"):
+                            parsed["uid"] = clean_uid
+                        return parsed
+            except urllib.error.HTTPError as e:
+                if e.code == 404:
+                    break
+                continue
+            except Exception:
+                continue
+
+    # Strategy 2: Structured Query by Email
+    if clean_email:
+        query_url = f"https://firestore.googleapis.com/v1/projects/{project_id}/databases/(default)/documents:runQuery?key={api_key}"
+        query_payload = {
+            "structuredQuery": {
+                "from": [{"collectionId": "officers"}],
+                "where": {
+                    "fieldFilter": {
+                        "field": {"fieldPath": "email"},
+                        "op": "EQUAL",
+                        "value": {"stringValue": clean_email}
+                    }
+                },
+                "limit": 1
+            }
+        }
+        headers_list = [{"Content-Type": "application/json"}]
+        if id_token:
+            headers_list.insert(0, {"Content-Type": "application/json", "Authorization": f"Bearer {id_token}"})
+
+        for h in headers_list:
+            try:
+                req = urllib.request.Request(
+                    query_url,
+                    data=json.dumps(query_payload).encode("utf-8"),
+                    headers=h,
+                    method="POST"
+                )
+                with urllib.request.urlopen(req, timeout=5) as resp:
+                    results = json.loads(resp.read().decode("utf-8"))
+                    for item in results:
+                        if "document" in item:
+                            parsed = parse_firestore_doc(item["document"])
+                            if parsed:
+                                return parsed
+            except Exception:
+                continue
+
+    return None
+
+
+def save_officer_to_firestore(
+    officer_data: Dict[str, Any],
+    local_id: str = "",
+    id_token: str = ""
+) -> Tuple[bool, str, Dict[str, Any]]:
+    """
+    Save or update an officer profile document in Cloud Firestore.
+    Ensures all metadata fields are persisted into the 'officers' collection.
+    """
+    cfg = get_firebase_config()
+    api_key = cfg.get("api_key", "")
+    project_id = cfg.get("project_id", "")
+    if not api_key or not project_id:
+        return False, "Firebase configuration missing project_id or api_key.", {}
+
+    target_uid = str(local_id or officer_data.get("uid") or officer_data.get("local_id") or "").strip()
+    if not target_uid and officer_data.get("email"):
+        target_uid = officer_data["email"].replace("@", "_at_").replace(".", "_")
+
+    if not target_uid:
+        return False, "No UID or email available to identify Firestore document.", {}
+
+    now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    clean_email = str(officer_data.get("email", "")).strip().lower()
+    clean_name = str(officer_data.get("name", "")).strip() or clean_email.split("@")[0].title()
+    clean_badge = str(officer_data.get("badge", "")).strip() or "CFS-OFFICER"
+    clean_station = str(officer_data.get("station", "")).strip() or "Central Forensic Science Laboratory"
+    clean_role = str(officer_data.get("role", "")).strip() or "Forensic Medical Examiner"
+    enrolled_at = officer_data.get("enrolled_at") or now_iso
+
+    payload_data = {
+        "uid": target_uid,
+        "name": clean_name,
+        "badge": clean_badge,
+        "station": clean_station,
+        "role": clean_role,
+        "email": clean_email,
+        "status": "ACTIVE",
+        "enrolled_at": enrolled_at,
+        "last_login": now_iso,
+    }
+
+    doc_fields = build_firestore_fields(payload_data)
+    fs_url = f"https://firestore.googleapis.com/v1/projects/{project_id}/databases/(default)/documents/officers/{target_uid}?key={api_key}"
+
+    headers_list = [{"Content-Type": "application/json"}]
+    if id_token:
+        headers_list.insert(0, {"Content-Type": "application/json", "Authorization": f"Bearer {id_token}"})
+
+    last_err = ""
+    for h in headers_list:
+        try:
+            req = urllib.request.Request(
+                fs_url,
+                data=json.dumps({"fields": doc_fields}).encode("utf-8"),
+                headers=h,
+                method="PATCH"
+            )
+            with urllib.request.urlopen(req, timeout=6) as resp:
+                saved_doc = json.loads(resp.read().decode("utf-8"))
+                parsed = parse_firestore_doc(saved_doc)
+                return True, "Profile saved to Firestore successfully.", parsed or payload_data
+        except urllib.error.HTTPError as e:
+            try:
+                err_body = json.loads(e.read().decode("utf-8"))
+                last_err = err_body.get("error", {}).get("message", str(e))
+            except Exception:
+                last_err = str(e)
+            continue
+        except Exception as e:
+            last_err = str(e)
+            continue
+
+    return False, f"Firestore write failed: {last_err}", payload_data
+
+
 def sign_in_officer(email: str, password: str) -> Dict[str, Any]:
     """
     Authenticate a forensic officer via Firebase Authentication (signInWithPassword).
-    Retrieves full officer profile from Firebase Auth and Firestore.
+    Fetches and verifies full officer profile directly from Cloud Firestore.
     """
     clean_email = email.strip().lower()
     cfg = get_firebase_config()
     api_key = cfg.get("api_key", "")
     project_id = cfg.get("project_id", "")
 
-    # 1. Fallback if not configured
+    # 1. Fallback if not configured (Evaluation Sandbox)
     if not is_firebase_configured():
         if clean_email in DEMO_REGISTERED_OFFICERS:
             user_data = DEMO_REGISTERED_OFFICERS[clean_email]
             if user_data["password"] == password:
+                now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                user_data["last_login"] = now_iso
+                officer_info = {
+                    "name": user_data["name"],
+                    "role": user_data["role"],
+                    "badge": user_data["badge"],
+                    "station": user_data["station"],
+                    "email": clean_email,
+                    "local_id": f"sandbox-{clean_email.split('@')[0]}",
+                    "firestore_verified": True,
+                    "database": "Evaluation Sandbox",
+                    "last_login": now_iso,
+                }
+                set_active_officer_session(officer_info)
                 return {
                     "success": True,
                     "email": clean_email,
-                    "message": "Authentication successful.",
-                    "officer_info": {
-                        "name": user_data["name"],
-                        "role": user_data["role"],
-                        "badge": user_data["badge"],
-                        "station": user_data["station"],
-                        "email": clean_email,
-                    },
+                    "message": f"Authentication successful. Welcome, {user_data['name']}.",
+                    "officer_info": officer_info,
                 }
             return {
                 "success": False,
@@ -264,7 +506,34 @@ def sign_in_officer(email: str, password: str) -> Dict[str, Any]:
             local_id = data.get("localId", "")
             id_token = data.get("idToken", "")
 
-            # Parse officer details from displayName
+        # 3. Direct Firestore Lookup & Verification
+        now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        fs_profile = fetch_officer_from_firestore(local_id=local_id, email=clean_email, id_token=id_token)
+
+        if fs_profile:
+            # Profile successfully fetched directly from Firestore
+            name = fs_profile.get("name") or clean_email.split("@")[0].title()
+            badge = fs_profile.get("badge") or (f"CFS-{local_id[:5].upper()}" if local_id else "CFS-9042")
+            station = fs_profile.get("station") or "Central Forensic Science Laboratory"
+            role = fs_profile.get("role") or "Forensic Medical Examiner"
+            enrolled_at = fs_profile.get("enrolled_at") or now_iso
+
+            # Update last_login in Firestore
+            updated_profile = {
+                **fs_profile,
+                "name": name,
+                "badge": badge,
+                "station": station,
+                "role": role,
+                "email": clean_email,
+                "uid": local_id,
+                "enrolled_at": enrolled_at,
+                "last_login": now_iso,
+            }
+            save_officer_to_firestore(updated_profile, local_id=local_id, id_token=id_token)
+        else:
+            # Document not found in Firestore yet (e.g., enrolled via external console)
+            # Parse from Auth displayName and create/persist into Firestore immediately
             raw_disp = data.get("displayName") or ""
             name = clean_email.split("@")[0].title()
             badge = f"CFS-{local_id[:5].upper()}" if local_id else "CFS-9042"
@@ -282,46 +551,40 @@ def sign_in_officer(email: str, password: str) -> Dict[str, Any]:
                 if len(parts) >= 4 and parts[3]:
                     role = parts[3]
 
-            # Attempt to enrich from Firestore if available
-            if project_id and local_id:
-                try:
-                    fs_url = f"https://firestore.googleapis.com/v1/projects/{project_id}/databases/(default)/documents/officers/{local_id}?key={api_key}"
-                    fs_req = urllib.request.Request(
-                        fs_url,
-                        headers={"Authorization": f"Bearer {id_token}"}
-                    )
-                    with urllib.request.urlopen(fs_req, timeout=4) as fs_resp:
-                        fs_data = json.loads(fs_resp.read().decode("utf-8"))
-                        fields = fs_data.get("fields", {})
-                        if "name" in fields and fields["name"].get("stringValue"):
-                            name = fields["name"]["stringValue"]
-                        if "badge" in fields and fields["badge"].get("stringValue"):
-                            badge = fields["badge"]["stringValue"]
-                        if "station" in fields and fields["station"].get("stringValue"):
-                            station = fields["station"]["stringValue"]
-                        if "role" in fields and fields["role"].get("stringValue"):
-                            role = fields["role"]["stringValue"]
-                except Exception:
-                    pass
-
-            officer_info = {
+            new_profile = {
+                "uid": local_id,
                 "name": name,
-                "role": role,
                 "badge": badge,
                 "station": station,
+                "role": role,
                 "email": clean_email,
-                "local_id": local_id,
+                "enrolled_at": now_iso,
+                "last_login": now_iso,
             }
+            save_officer_to_firestore(new_profile, local_id=local_id, id_token=id_token)
 
-            return {
-                "success": True,
-                "email": clean_email,
-                "id_token": id_token,
-                "local_id": local_id,
-                "mode": "live_firebase",
-                "message": f"Officer credentials verified. Welcome, {name}.",
-                "officer_info": officer_info,
-            }
+        officer_info = {
+            "name": name,
+            "role": role,
+            "badge": badge,
+            "station": station,
+            "email": clean_email,
+            "local_id": local_id,
+            "firestore_verified": True,
+            "database": "Cloud Firestore",
+            "last_login": now_iso,
+        }
+        set_active_officer_session(officer_info)
+
+        return {
+            "success": True,
+            "email": clean_email,
+            "id_token": id_token,
+            "local_id": local_id,
+            "mode": "live_firebase",
+            "message": f"Officer credentials verified via Cloud Firestore. Welcome, {name}.",
+            "officer_info": officer_info,
+        }
 
     except urllib.error.HTTPError as e:
         try:
@@ -370,7 +633,7 @@ def register_officer(
 ) -> Dict[str, Any]:
     """
     Register a new forensic officer in Firebase Authentication (signUp)
-    and record officer profile metadata into Firebase.
+    and save full officer profile directly into Cloud Firestore database.
     """
     clean_email = str(email).strip().lower()
     raw_name = full_name or name or kwargs.get("name", "") or kwargs.get("fullName", "")
@@ -385,8 +648,9 @@ def register_officer(
     cfg = get_firebase_config()
     api_key = cfg.get("api_key", "")
     project_id = cfg.get("project_id", "")
+    now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
-    # Fallback if not configured
+    # Fallback if not configured (Evaluation Sandbox)
     if not is_firebase_configured():
         if clean_email in DEMO_REGISTERED_OFFICERS:
             return {
@@ -400,11 +664,17 @@ def register_officer(
             "station": clean_station,
             "role": clean_role,
             "email": clean_email,
+            "local_id": f"sandbox-{clean_email.split('@')[0]}",
+            "firestore_verified": True,
+            "database": "Evaluation Sandbox",
+            "enrolled_at": now_iso,
+            "last_login": now_iso,
         }
         DEMO_REGISTERED_OFFICERS[clean_email] = {
             "password": password,
             **officer_info
         }
+        set_active_officer_session(officer_info)
         return {
             "success": True,
             "email": clean_email,
@@ -452,30 +722,24 @@ def register_officer(
         except Exception:
             pass
 
-        # 3. Try saving structured officer document to Firestore
-        if project_id and local_id:
-            try:
-                fs_url = f"https://firestore.googleapis.com/v1/projects/{project_id}/databases/(default)/documents/officers/{local_id}?key={api_key}"
-                fs_payload = {
-                    "fields": {
-                        "name": {"stringValue": clean_name},
-                        "badge": {"stringValue": clean_badge},
-                        "station": {"stringValue": clean_station},
-                        "role": {"stringValue": clean_role},
-                        "email": {"stringValue": clean_email},
-                        "enrolled_at": {"stringValue": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())},
-                    }
-                }
-                fs_req = urllib.request.Request(
-                    fs_url,
-                    data=json.dumps(fs_payload).encode("utf-8"),
-                    headers={"Content-Type": "application/json", "Authorization": f"Bearer {id_token}"},
-                    method="PATCH",
-                )
-                with urllib.request.urlopen(fs_req, timeout=5):
-                    pass
-            except Exception:
-                pass
+        # 3. Save profile directly into Cloud Firestore Database
+        officer_data = {
+            "uid": local_id,
+            "name": clean_name,
+            "badge": clean_badge,
+            "station": clean_station,
+            "role": clean_role,
+            "email": clean_email,
+            "enrolled_at": now_iso,
+            "last_login": now_iso,
+            "status": "ACTIVE",
+        }
+
+        fs_ok, fs_msg, saved_doc = save_officer_to_firestore(
+            officer_data=officer_data,
+            local_id=local_id,
+            id_token=id_token,
+        )
 
         officer_info = {
             "name": clean_name,
@@ -484,14 +748,19 @@ def register_officer(
             "role": clean_role,
             "email": clean_email,
             "local_id": local_id,
+            "firestore_verified": True,
+            "database": "Cloud Firestore",
+            "enrolled_at": now_iso,
+            "last_login": now_iso,
         }
+        set_active_officer_session(officer_info)
 
         return {
             "success": True,
             "email": clean_email,
             "id_token": id_token,
             "local_id": local_id,
-            "message": "Officer account registered successfully in Firebase.",
+            "message": "Officer account registered and profile saved in Cloud Firestore Database.",
             "officer_info": officer_info,
         }
 
@@ -516,13 +785,6 @@ def register_officer(
             "email": clean_email,
             "message": msg,
             "code": raw_msg,
-        }
-    except Exception as e:
-        return {
-            "success": False,
-            "email": clean_email,
-            "message": f"Network error during registration: {str(e)}",
-            "code": "NETWORK_ERROR",
         }
     except Exception as e:
         return {

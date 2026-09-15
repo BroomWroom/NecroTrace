@@ -79,6 +79,10 @@ from src.auth import (
     check_email_registered_in_firebase,
     sign_in_officer,
     register_officer,
+    fetch_officer_from_firestore,
+    get_active_officer_session,
+    set_active_officer_session,
+    clear_active_officer_session,
     generate_release_passcode,
     verify_release_passcode,
     save_firebase_config,
@@ -102,11 +106,56 @@ st.set_page_config(
 # -----------------------------------------------------------------------------
 # Handle query parameters for view routing if present
 query_view = st.query_params.get("view", None)
+query_auth = st.query_params.get("auth", None)
+
 if query_view == "logout":
     st.session_state["authenticated_officer"] = None
+    clear_active_officer_session()
     st.query_params.clear()
     st.session_state["view"] = "landing"
     st.rerun()
+
+# 1. Restore authenticated officer if not in current session_state
+if not st.session_state.get("authenticated_officer"):
+    cached_session_officer = get_active_officer_session()
+    if cached_session_officer:
+        st.session_state["authenticated_officer"] = cached_session_officer
+    elif query_auth:
+        fs_officer = fetch_officer_from_firestore(local_id=query_auth)
+        if fs_officer:
+            officer_obj = {
+                "name": fs_officer.get("name", "Examiner"),
+                "role": fs_officer.get("role", "Forensic Medical Examiner"),
+                "badge": fs_officer.get("badge", "CFS-9042"),
+                "station": fs_officer.get("station", "Central Forensic Science Laboratory"),
+                "email": fs_officer.get("email", ""),
+                "local_id": query_auth,
+                "firestore_verified": True,
+                "database": "Cloud Firestore",
+            }
+            st.session_state["authenticated_officer"] = officer_obj
+            set_active_officer_session(officer_obj)
+        elif query_auth.startswith("sandbox-"):
+            email_key = query_auth.replace("sandbox-", "")
+            for demo_email, demo_data in DEMO_REGISTERED_OFFICERS.items():
+                if demo_email.startswith(email_key):
+                    officer_obj = {
+                        "name": demo_data["name"],
+                        "role": demo_data["role"],
+                        "badge": demo_data["badge"],
+                        "station": demo_data["station"],
+                        "email": demo_email,
+                        "local_id": query_auth,
+                        "firestore_verified": True,
+                        "database": "Evaluation Sandbox",
+                    }
+                    st.session_state["authenticated_officer"] = officer_obj
+                    set_active_officer_session(officer_obj)
+                    break
+
+# Always sync active session when authenticated_officer is present
+if st.session_state.get("authenticated_officer"):
+    set_active_officer_session(st.session_state["authenticated_officer"])
 
 VALID_VIEWS = ["landing", "examination", "verify"]
 if "view" not in st.session_state:
@@ -940,14 +989,19 @@ if not st.session_state.get("authenticated_officer") and st.session_state.get("v
                     st.warning(
                         "Please provide both registered email and password.")
                 else:
-                    with st.spinner("Authenticating against Firebase Directory..."):
+                    with st.spinner("Authenticating & fetching profile from Cloud Firestore..."):
                         auth_res = sign_in_officer(login_email, login_pass)
                     if auth_res.get("success"):
-                        st.session_state["authenticated_officer"] = auth_res.get(
-                            "officer_info")
+                        officer_info = auth_res.get("officer_info", {})
+                        st.session_state["authenticated_officer"] = officer_info
+                        set_active_officer_session(officer_info)
                         st.session_state["view"] = "landing"
+                        st.query_params.clear()
+                        st.query_params["view"] = "landing"
+                        if officer_info.get("local_id"):
+                            st.query_params["auth"] = officer_info["local_id"]
                         st.success(
-                            f"Identity Verified. Welcome, {auth_res.get('officer_info', {}).get('name')}.")
+                            f"Identity Verified via Cloud Firestore. Welcome, {officer_info.get('name')}.")
                         st.rerun()
                     else:
                         st.error(auth_res.get('message'))
@@ -1011,7 +1065,7 @@ if not st.session_state.get("authenticated_officer") and st.session_state.get("v
                 elif reg_pass != reg_pass_conf:
                     st.error("Passcodes do not match.")
                 else:
-                    with st.spinner("Writing officer profile to Database..."):
+                    with st.spinner("Enrolling examiner & saving profile to Cloud Firestore..."):
                         reg_res = register_officer(
                             email=reg_email,
                             password=reg_pass,
@@ -1022,11 +1076,16 @@ if not st.session_state.get("authenticated_officer") and st.session_state.get("v
                             role=reg_role,
                         )
                     if reg_res.get("success"):
-                        st.session_state["authenticated_officer"] = reg_res.get(
-                            "officer_info")
+                        officer_info = reg_res.get("officer_info", {})
+                        st.session_state["authenticated_officer"] = officer_info
+                        set_active_officer_session(officer_info)
                         st.session_state["view"] = "landing"
+                        st.query_params.clear()
+                        st.query_params["view"] = "landing"
+                        if officer_info.get("local_id"):
+                            st.query_params["auth"] = officer_info["local_id"]
                         st.success(
-                            f"Examiner {reg_name} successfully enrolled. Launching platform...")
+                            f"Profile saved to Cloud Firestore Database. Welcome, {reg_name}.")
                         st.rerun()
                     else:
                         st.error(
@@ -1076,6 +1135,8 @@ if st.session_state["view"] == "landing":
 
     # --- SECTION 01: FULL-VIEWPORT HERO SECTION WITH KINETIC GRID & FLOATING NAV ---
     cur_officer = st.session_state.get("authenticated_officer") or {}
+    cur_uid = cur_officer.get("local_id", "")
+    auth_q = f"&auth={cur_uid}" if cur_uid else ""
     officer_name_short = cur_officer.get("name", "Examiner")
     officer_badge_short = cur_officer.get("badge", "CFS")
     officer_nav_pill = f"""
@@ -1103,7 +1164,7 @@ if st.session_state["view"] == "landing":
                     <a href="#succession" style="font-family: var(--font-mono); font-size: 13px; color: var(--color-graphite); text-decoration: none; transition: color 0.15s ease;">02 SUCCESSION</a>
                     <a href="#dossier" style="font-family: var(--font-mono); font-size: 13px; color: var(--color-graphite); text-decoration: none; transition: color 0.15s ease;">03 CASE DOSSIER</a>
                     {officer_nav_pill}
-                    <a href="?view=examination" target="_self" style="font-family: var(--font-mono); font-size: 12px; color: var(--color-paper); text-decoration: none; border: 1px solid var(--color-graphite); padding: 8px 16px; border-radius: 6px; letter-spacing: -0.02em; background: rgba(255, 255, 255, 0.03); transition: all 0.15s ease;">EXAMINATION ROOM &rarr;</a>
+                    <a href="?view=examination{auth_q}" target="_self" style="font-family: var(--font-mono); font-size: 12px; color: var(--color-paper); text-decoration: none; border: 1px solid var(--color-graphite); padding: 8px 16px; border-radius: 6px; letter-spacing: -0.02em; background: rgba(255, 255, 255, 0.03); transition: all 0.15s ease;">EXAMINATION ROOM &rarr;</a>
                 </div>
             </div>
         </header>
@@ -1118,7 +1179,7 @@ if st.session_state["view"] == "landing":
                 High-throughput metagenomic taxonomic profiling and quantile regression to infer postmortem intervals with quantifiable evidentiary certainty.
             </p>
             <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 12px;">
-                <a href="?view=examination" target="_self" class="sober-btn-dark">COMMENCE POST-MORTEM EXAMINATION</a>
+                <a href="?view=examination{auth_q}" target="_self" class="sober-btn-dark">COMMENCE POST-MORTEM EXAMINATION</a>
                 <a href="#platform" class="sober-btn-ghost">METHODOLOGY SPECIFICATIONS</a>
             </div>
         </div>
@@ -1516,7 +1577,7 @@ if st.session_state["view"] == "landing":
     """)
 
     # --- SECTION 04: CLOSURE VOID GROUND (#000000) ---
-    render_clean_html("""
+    render_clean_html(f"""
     <div id="dossier" style="background-color: var(--color-void); padding: 100px 40px 80px 40px; border-top: 1px solid #1a2223;">
         <div style="max-width: 1200px; margin: 0 auto;">
             <div class="section-counter" style="border-color: #333333; color: #888888;">
@@ -1530,7 +1591,7 @@ if st.session_state["view"] == "landing":
                 <p style="font-size: 18px; color: var(--color-graphite); margin: 0 0 36px 0; max-width: 680px; line-height: 1.4;">
                     Proceed to the interactive triage workflow to input autopsy particulars, correlate morphological findings, confirm microbial bioindicators, and export the official Form PM-5372 dossier.
                 </p>
-                <a href="?view=examination" target="_self" class="sober-btn-dark">COMMENCE POST-MORTEM EXAMINATION</a>
+                <a href="?view=examination{auth_q}" target="_self" class="sober-btn-dark">COMMENCE POST-MORTEM EXAMINATION</a>
             </div>
         </div>
     </div>
@@ -1558,7 +1619,7 @@ if st.session_state["view"] == "landing":
                         <a href="#succession" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Features</a>
                         <a href="#succession" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Methodology</a>
                         <a href="#dossier" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Dossier</a>
-                        <a href="?view=examination" target="_self" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Examination</a>
+                        <a href="?view=examination{auth_q}" target="_self" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Examination</a>
                         <a href="mailto:forensics@necrotrace.org" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Contact</a>
                     </div>
                 </div>
@@ -1757,6 +1818,8 @@ elif st.session_state["view"] == "examination":
 
     # Top Navigation Bar in Examination View
     cur_officer = st.session_state.get("authenticated_officer") or {}
+    cur_uid = cur_officer.get("local_id", "")
+    auth_q = f"&auth={cur_uid}" if cur_uid else ""
     officer_name_short = cur_officer.get("name", "Examiner")
     officer_badge_short = cur_officer.get("badge", "CFS")
     nav_exam_html = f"""
@@ -1776,7 +1839,7 @@ elif st.session_state["view"] == "examination":
                     {officer_name_short} ({officer_badge_short})
                 </span>
                 <a href="?view=logout" target="_self" style="font-family: var(--font-mono); font-size: 11px; color: #fca5a5; text-decoration: none; border: 1px solid rgba(239, 68, 68, 0.4); padding: 5px 10px; border-radius: 6px; background: rgba(239, 68, 68, 0.08); transition: all 0.15s ease;">LOG OUT</a>
-                <a href="?view=landing" target="_self" class="sober-btn-ghost" style="padding: 6px 16px; font-size: 11px; height: 34px; min-height: 34px; text-decoration: none;">&larr; RETURN TO PLATFORM OVERVIEW</a>
+                <a href="?view=landing{auth_q}" target="_self" class="sober-btn-ghost" style="padding: 6px 16px; font-size: 11px; height: 34px; min-height: 34px; text-decoration: none;">&larr; RETURN TO PLATFORM OVERVIEW</a>
             </div>
         </div>
     </header>
@@ -2227,9 +2290,11 @@ elif st.session_state["view"] == "examination":
                         "police_station": police_station,
                         "inquest_no": inquest_no,
                         "inquest_date": datetime.now().strftime("%d / %m / %Y"),
-                        "analyst": analyst_name,
-                        "reg_no": "WBMC / 45826",
-                        "institution": "District Medico-Legal Center & Morgue",
+                        "analyst": cur_officer.get("name") or analyst_name,
+                        "reg_no": cur_officer.get("badge") or "WBMC / 45826",
+                        "designation": cur_officer.get("role") or "Medical Officer & Forensic Specialist",
+                        "department": cur_officer.get("station") or "District Medico-Legal Center & Morgue",
+                        "institution": cur_officer.get("station") or "District Medico-Legal Center & Morgue",
                         "rigor_obs": rigor_opt,
                         "bloat_obs": bloat_opt,
                         "discolor_obs": discolor_opt,
@@ -2515,7 +2580,8 @@ elif st.session_state["view"] == "examination":
                         dir_pass = st.text_input(
                             "Password", type="password", key="dir_pass")
                         if st.button("VERIFY & SIGN IN", use_container_width=True, key="btn_direct_signin"):
-                            auth_res = sign_in_officer(dir_email, dir_pass)
+                            with st.spinner("Authenticating & fetching profile from Cloud Firestore..."):
+                                auth_res = sign_in_officer(dir_email, dir_pass)
                             if auth_res.get("success"):
                                 st.session_state["authenticated_officer"] = auth_res.get(
                                     "officer_info")
@@ -2523,7 +2589,7 @@ elif st.session_state["view"] == "examination":
                                 st.session_state["unlocked_reports"].add(
                                     clean_pm)
                                 st.success(
-                                    f"Officer Verified: {auth_res.get('officer_info', {}).get('name')}")
+                                    f"Officer Verified via Cloud Firestore: {auth_res.get('officer_info', {}).get('name')}")
                                 st.rerun()
                             else:
                                 st.error(auth_res.get('message'))
@@ -2555,6 +2621,15 @@ elif st.session_state["view"] == "examination":
                     mime="application/pdf",
                     use_container_width=True,
                 )
+
+    st.markdown("<hr class='hairline-dark' style='margin: 40px 0 20px 0;'>", unsafe_allow_html=True)
+    if st.button("← RETURN TO PLATFORM OVERVIEW (VIEW 1)", use_container_width=True, key="btn_return_v1_bottom"):
+        st.session_state["view"] = "landing"
+        st.query_params["view"] = "landing"
+        cur_off = st.session_state.get("authenticated_officer") or {}
+        if cur_off.get("local_id"):
+            st.query_params["auth"] = cur_off["local_id"]
+        st.rerun()
 
 
 # =============================================================================
@@ -2684,7 +2759,7 @@ elif st.session_state["view"] == "verify":
                         st.warning(
                             "Please enter both registered email and password.")
                     else:
-                        with st.spinner("Authenticating against Firebase Identity Toolkit..."):
+                        with st.spinner("Authenticating & fetching profile from Cloud Firestore..."):
                             auth_res = sign_in_officer(v_email, v_pass)
                         if auth_res.get("success"):
                             st.session_state["authenticated_officer"] = auth_res.get(
@@ -2694,7 +2769,7 @@ elif st.session_state["view"] == "verify":
                             st.session_state["unlocked_reports"].add(
                                 clean_case_id)
                             st.success(
-                                f"Credentials Validated. Welcome, {auth_res.get('officer_info', {}).get('name')}.")
+                                f"Credentials Validated via Cloud Firestore. Welcome, {auth_res.get('officer_info', {}).get('name')}.")
                             st.rerun()
                         else:
                             st.error(auth_res.get('message'))
@@ -2725,7 +2800,7 @@ elif st.session_state["view"] == "verify":
                 elif len(r_pass) < 6:
                     st.error("Password must be at least 6 characters.")
                 else:
-                    with st.spinner("Registering with Firebase Auth & Firestore Directory..."):
+                    with st.spinner("Enrolling officer & saving profile to Cloud Firestore..."):
                         reg_out = register_officer(
                             email=r_email,
                             password=r_pass,
@@ -2741,7 +2816,7 @@ elif st.session_state["view"] == "verify":
                         st.session_state["unlocked_reports"].add(case_param)
                         st.session_state["unlocked_reports"].add(clean_case_id)
                         st.success(
-                            f"Officer {r_name} enrolled successfully in Firebase. Unlocking dossier...")
+                            f"Officer {r_name} saved to Cloud Firestore. Unlocking dossier...")
                         st.rerun()
                     else:
                         st.error(reg_out.get('message'))
@@ -2762,7 +2837,7 @@ elif st.session_state["view"] == "verify":
                 <div style="display: flex; align-items: center; gap: 12px;">
                     <span style="font-size: 28px; color: #34d399;">✓</span>
                     <div>
-                        <div class="mono-tag" style="color: #6ee7b7; font-size: 10px;">FIREBASE IDENTITY VERIFIED &bull; ISO 17025 CHAIN OF CUSTODY</div>
+                        <div class="mono-tag" style="color: #6ee7b7; font-size: 10px;">FIREBASE &amp; FIRESTORE VERIFIED &bull; ISO 17025 CHAIN OF CUSTODY</div>
                         <div style="font-size: 20px; font-weight: 600; color: #ffffff;">AUTHORIZED EXAMINER: {off_name}</div>
                     </div>
                 </div>
@@ -2928,11 +3003,17 @@ elif st.session_state["view"] == "verify":
         if st.button("← RETURN TO LANDING MATRIX", use_container_width=True):
             st.session_state["view"] = "landing"
             st.query_params["view"] = "landing"
+            cur_off = st.session_state.get("authenticated_officer") or {}
+            if cur_off.get("local_id"):
+                st.query_params["auth"] = cur_off["local_id"]
             st.rerun()
     with v_col2:
         if st.button("OPEN AUTOPSY EXAMINATION ROOM →", use_container_width=True):
             st.session_state["view"] = "examination"
             st.query_params["view"] = "examination"
+            cur_off = st.session_state.get("authenticated_officer") or {}
+            if cur_off.get("local_id"):
+                st.query_params["auth"] = cur_off["local_id"]
             st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
