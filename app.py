@@ -643,16 +643,28 @@ def get_microbe_svg(morphology_type: str, gram_stain: str) -> str:
 def get_microbe_card_banner(taxon_id: str, common_name: str, morphology_type: str, gram_stain: str) -> str:
     """
     Renders the rich media banner for the microbial card.
-    Uses balanced 3:2 photographic proportions (230px height) to avoid wide stretching.
-    Checks for user-provided real images in assets/microbes/{taxon_id}.[png|jpg|jpeg|webp|svg].
-    If none found, renders an elegant viewfinder placeholder banner.
+    Uses balanced photographic proportions (230px height) with clinical microscopy HUD overlay.
+    Prioritizes real user-provided JPEG/PNG assets in assets/microbes/.
     """
-    exts = [".png", ".jpg", ".jpeg", ".webp", ".svg"]
+    accent = "#b882ff" if "positive" in gram_stain.lower() else "#ff6b8b"
+
+    # Search candidates across multiple naming conventions (spaces, underscores, common names)
+    candidates = [
+        os.path.join("assets", "microbes", f"{taxon_id}.jpg"),
+        os.path.join("assets", "microbes", f"{taxon_id}.jpeg"),
+        os.path.join("assets", "microbes", f"{taxon_id}.png"),
+        os.path.join("assets", "microbes", f"{taxon_id.replace('_', ' ')}.jpg"),
+        os.path.join("assets", "microbes", f"{taxon_id.replace('_', ' ')}.jpeg"),
+        os.path.join("assets", "microbes", f"{common_name}.jpg"),
+        os.path.join("assets", "microbes", f"{common_name}.jpeg"),
+        os.path.join("app", "assets", "microbes", f"{taxon_id}.jpg"),
+        os.path.join("app", "assets", "microbes", f"{taxon_id.replace('_', ' ')}.jpg"),
+        os.path.join("app", "assets", "microbes", f"{common_name}.jpg"),
+    ]
     found_asset = None
-    for ext in exts:
-        p = os.path.join("assets", "microbes", f"{taxon_id}{ext}")
-        if os.path.exists(p):
-            found_asset = p
+    for cand in candidates:
+        if os.path.exists(cand):
+            found_asset = cand
             break
 
     if found_asset and not found_asset.endswith(".svg"):
@@ -660,12 +672,28 @@ def get_microbe_card_banner(taxon_id: str, common_name: str, morphology_type: st
             with open(found_asset, "rb") as img_file:
                 b64 = base64.b64encode(img_file.read()).decode("utf-8")
             mime = "image/png" if found_asset.endswith(".png") else "image/jpeg"
-            return f'''<div style="width: 100%; height: 230px; overflow: hidden; background: #121a1b; border-bottom: 1px solid #2d3b3c;"><img src="data:{mime};base64,{b64}" style="width: 100%; height: 100%; object-fit: cover; display: block;" alt="{common_name}" /></div>'''
+            return f'''<div style="width: 100%; height: 230px; position: relative; overflow: hidden; background: #0c1213; border-bottom: 1px solid #283637;">
+                <!-- Real Microscopy JPEG Image -->
+                <img src="data:{mime};base64,{b64}" style="width: 100%; height: 100%; object-fit: cover; display: block; filter: brightness(0.96) contrast(1.05);" alt="{common_name}" />
+                
+                <!-- Subtle Clean Vignette -->
+                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; background: linear-gradient(180deg, rgba(8,14,15,0.4) 0%, rgba(8,14,15,0) 25%, rgba(8,14,15,0) 75%, rgba(8,14,15,0.25) 100%);"></div>
+                
+                <!-- Clinical Microscopy HUD Brackets (Symmetrical Frame) -->
+                <div style="position: absolute; top: 12px; left: 14px; width: 12px; height: 12px; border-top: 1.5px solid rgba(255,255,255,0.5); border-left: 1.5px solid rgba(255,255,255,0.5); pointer-events: none;"></div>
+                <div style="position: absolute; top: 12px; right: 14px; width: 12px; height: 12px; border-top: 1.5px solid rgba(255,255,255,0.5); border-right: 1.5px solid rgba(255,255,255,0.5); pointer-events: none;"></div>
+                <div style="position: absolute; bottom: 12px; left: 14px; width: 12px; height: 12px; border-bottom: 1.5px solid rgba(255,255,255,0.5); border-left: 1.5px solid rgba(255,255,255,0.5); pointer-events: none;"></div>
+                <div style="position: absolute; bottom: 12px; right: 14px; width: 12px; height: 12px; border-bottom: 1.5px solid rgba(255,255,255,0.5); border-right: 1.5px solid rgba(255,255,255,0.5); pointer-events: none;"></div>
+                
+                <!-- Top Status Badge -->
+                <div style="position: absolute; top: 10px; right: 12px; background: rgba(8, 14, 15, 0.85); border: 1px solid rgba(77, 87, 87, 0.6); padding: 3px 8px; border-radius: 4px; font-family: var(--font-mono); font-size: 9px; color: #cef79e; letter-spacing: 0.05em; backdrop-filter: blur(4px);">
+                    ● SPECIMEN VERIFIED
+                </div>
+            </div>'''
         except Exception:
             pass
 
-    # Viewfinder Geometric Placeholder (Balanced 380x230 camera aspect ratio)
-    accent = "#b882ff" if "positive" in gram_stain.lower() else "#ff6b8b"
+    # Viewfinder Geometric Placeholder Fallback
     return f'''<div style="width: 100%; height: 230px; overflow: hidden; position: relative; background: #152021; border-bottom: 1px solid #283637;">
         <svg viewBox="0 0 380 230" width="100%" height="100%" preserveAspectRatio="none" style="display: block;">
             <defs>
@@ -700,12 +728,9 @@ def get_microbe_card_banner(taxon_id: str, common_name: str, morphology_type: st
             
             <!-- Top HUD Badge -->
             <rect x="238" y="14" width="128" height="22" rx="4" fill="#0f1617" fill-opacity="0.9" stroke="#2d3c3d" stroke-width="0.8"/>
-            <text x="302" y="29" font-family="'Roboto Mono', monospace" font-size="9" fill="#9db0b0" text-anchor="middle" letter-spacing="0.04em">DROP IMAGE HERE</text>
+            <text x="302" y="29" font-family="'Roboto Mono', monospace" font-size="9" fill="#9db0b0" text-anchor="middle" letter-spacing="0.04em">MICROSCOPY STANDBY</text>
             
-            <!-- Bottom Label Strip -->
-            <rect x="0" y="204" width="380" height="26" fill="#0c1213" fill-opacity="0.9"/>
-            <text x="16" y="221" font-family="'Roboto Mono', monospace" font-size="9.5" fill="#728484" letter-spacing="0.04em">1000x OIL IMMERSION // {morphology_type.upper().replace('_', ' ')}</text>
-            <text x="364" y="221" font-family="'Roboto Mono', monospace" font-size="9.5" fill="{accent}" font-weight="500" text-anchor="end" letter-spacing="0.04em">{gram_stain.upper()}</text>
+            <!-- Bottom clean margin -->
         </svg>
     </div>'''
 
