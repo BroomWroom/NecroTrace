@@ -34,7 +34,7 @@ from src.reporting.pdf_generator import (
 # -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="NecroTrace // Forensic Metagenomics",
-    page_icon="⚖️",
+    page_icon="assets/favicon.png" if os.path.exists("assets/favicon.png") else "assets/logo_icon.png",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -71,6 +71,23 @@ def render_clean_html(html_str: str):
     cleaned_lines = [line.strip()
                      for line in html_str.splitlines() if line.strip()]
     st.markdown("\n".join(cleaned_lines), unsafe_allow_html=True)
+
+
+def _load_logo_b64() -> str:
+    import base64
+    candidates = [
+        os.path.join(os.path.dirname(__file__), "assets", "logo_icon_128.png"),
+        os.path.join("assets", "logo_icon_128.png"),
+        os.path.join("app", "assets", "logo_icon_128.png"),
+    ]
+    for p in candidates:
+        if os.path.exists(p):
+            with open(p, "rb") as f:
+                return f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+    return ""
+
+
+LOGO_ICON_B64 = _load_logo_b64()
 
 
 # -----------------------------------------------------------------------------
@@ -739,15 +756,16 @@ if st.session_state["view"] == "landing":
     """)
 
     # --- SECTION 01: FULL-VIEWPORT HERO SECTION WITH KINETIC GRID & FLOATING NAV ---
-    hero_markup = """
+    hero_markup = f"""
     <div id="kinetic-hero-container" style="position: relative; width: 100%; min-height: 100vh; overflow: hidden; background-color: var(--color-abyssal-ink); cursor: crosshair; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
         <canvas id="kinetic-grid-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none;"></canvas>
         
         <!-- Architectural Top Nav (Floating over the kinetic canvas) -->
         <header style="position: relative; z-index: 10; width: 100%; border-bottom: 1px solid rgba(77, 87, 87, 0.45); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); background: rgba(34, 47, 48, 0.55); pointer-events: auto;">
             <div style="padding: 22px 48px; display: flex; align-items: center; justify-content: space-between; max-width: 1300px; margin: 0 auto; box-sizing: border-box;">
-                <div style="display: flex; align-items: center; gap: 16px;">
-                    <span style="font-family: var(--font-mono); font-size: 14px; letter-spacing: -0.02em; color: var(--color-paper); font-weight: 500;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <img src="{LOGO_ICON_B64}" style="height: 32px; width: 32px; object-fit: contain; vertical-align: middle; filter: drop-shadow(0 0 10px rgba(116, 194, 92, 0.45));" alt="NecroTrace Logo" />
+                    <span style="font-family: var(--font-mono); font-size: 15px; letter-spacing: -0.01em; color: var(--color-paper); font-weight: 600;">
                         NECROTRACE
                     </span>
                 </div>
@@ -1192,7 +1210,7 @@ if st.session_state["view"] == "landing":
     """)
 
     # --- MINIMAL LANDING PAGE FOOTER ---
-    render_clean_html("""
+    render_clean_html(f"""
     <div class="necrotrace-footer" style="display: block !important; width: 100%; background-color: #000000; border-top: 1px solid #141417; padding-top: 54px; padding-bottom: 38px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
         <div style="max-width: 1120px; margin: 0 auto; padding: 0 24px; box-sizing: border-box;">
             
@@ -1202,14 +1220,9 @@ if st.session_state["view"] == "landing":
                 <!-- Left: Logo & Navigation Links -->
                 <div style="display: flex; flex-direction: column; gap: 24px; min-width: 260px;">
                     <!-- Logo mark -->
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="16" cy="16" r="14" stroke="#ffffff" stroke-width="2.2"/>
-                            <path d="M9 16c2.2-3.8 5-3.8 7 0s4.8 3.8 7 0" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round"/>
-                            <path d="M10 11.5c2-2.8 4.2-2.8 6 0s4 2.8 6 0" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" opacity="0.6"/>
-                            <path d="M10 20.5c2-2.8 4.2-2.8 6 0s4 2.8 6 0" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" opacity="0.6"/>
-                        </svg>
-                        <span style="font-size: 22px; font-weight: 700; color: #ffffff; letter-spacing: -0.02em;">necrotrace</span>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <img src="{LOGO_ICON_B64}" style="height: 34px; width: 34px; object-fit: contain; vertical-align: middle; filter: drop-shadow(0 0 10px rgba(116, 194, 92, 0.45));" alt="NecroTrace Logo" />
+                        <span style="font-size: 22px; font-weight: 700; color: #ffffff; letter-spacing: -0.02em; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">necrotrace</span>
                     </div>
 
                     <!-- Horizontal Links -->
@@ -1416,11 +1429,12 @@ elif st.session_state["view"] == "examination":
     """)
 
     # Top Navigation Bar in Examination View
-    nav_exam_html = """
+    nav_exam_html = f"""
     <header style="width: 100%; border-bottom: 1px solid var(--color-graphite); padding: 12px 0 20px 0; margin-bottom: 28px;">
         <div style="display: flex; align-items: center; justify-content: space-between;">
-            <div style="display: flex; align-items: center; gap: 14px;">
-                <span style="font-family: var(--font-mono); font-size: 13px; color: var(--color-paper); font-weight: 500; letter-spacing: 0.04em;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <img src="{LOGO_ICON_B64}" style="height: 26px; width: 26px; object-fit: contain; vertical-align: middle; filter: drop-shadow(0 0 8px rgba(116, 194, 92, 0.35));" alt="NecroTrace Logo" />
+                <span style="font-family: var(--font-mono); font-size: 13px; color: var(--color-paper); font-weight: 600; letter-spacing: 0.04em;">
                     NECROTRACE <span style="color: var(--color-graphite);">//</span> EXAMINATION ROOM
                 </span>
                 <span class="signal-dot"></span>

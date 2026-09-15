@@ -24,12 +24,13 @@ const Footer = () => {
           {/* Logo & Links */}
           <div className="space-y-6">
             <div className="flex items-center gap-2.5">
-              <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="16" cy="16" r="14" stroke="#ffffff" strokeWidth="2.2"/>
-                <path d="M9 16c2.2-3.8 5-3.8 7 0s4.8 3.8 7 0" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round"/>
-                <path d="M10 11.5c2-2.8 4.2-2.8 6 0s4 2.8 6 0" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" opacity="0.6"/>
-                <path d="M10 20.5c2-2.8 4.2-2.8 6 0s4 2.8 6 0" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" opacity="0.6"/>
-              </svg>
+              <img
+                src="/assets/logo_icon.png"
+                alt="NecroTrace Logo"
+                width={32}
+                height={32}
+                className="h-8 w-8 object-contain drop-shadow-[0_0_8px_rgba(116,194,92,0.45)]"
+              />
               <span className="text-xl font-bold tracking-tight text-white">necrotrace</span>
             </div>
 
