@@ -530,8 +530,10 @@ def generate_forensic_pdf(
 
     death_calendar_str = f"{dt_earliest.strftime('%d/%m/%Y')} to {dt_latest.strftime('%d/%m/%Y')} (Most Likely: {dt_most_likely.strftime('%d/%m/%Y')})"
 
-    cause_desc = case_metadata.get("cause_of_death", "ASPHYXIA AS A RESULT OF CONSTRICTION OF NECK (PENDING TOXICOLOGY & HISTOLOGY).")
-    manner_desc = case_metadata.get("manner_of_death", "Matter under judicial inquiry / Forensic Inquest.")
+    raw_cause = case_metadata.get("cause_of_death", "ASPHYXIA AS A RESULT OF CONSTRICTION OF NECK (PENDING TOXICOLOGY & HISTOLOGY).")
+    cause_desc = str(raw_cause).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;") if "&amp;" not in str(raw_cause) else str(raw_cause)
+    raw_manner = case_metadata.get("manner_of_death", "Matter under judicial inquiry / Forensic Inquest.")
+    manner_desc = str(raw_manner).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;") if "&amp;" not in str(raw_manner) else str(raw_manner)
 
     opinion_rows = [
         [

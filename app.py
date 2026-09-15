@@ -1521,6 +1521,32 @@ elif st.session_state["view"] == "examination":
             inquest_no = st.text_input("Inquest Number:", value="14 / 2026")
             analyst_name = st.text_input("Examining Medical Officer:", value="Dr. Tanish Walture, M.D. (WBMC / 45826)")
 
+        st.markdown('<hr class="hairline-dark" style="margin: 18px 0 14px 0;">', unsafe_allow_html=True)
+
+        # Provisional Autopsy Diagnoses & Inquest Findings
+        st.markdown('<div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-graphite); margin-bottom: 12px; letter-spacing: 0.05em; text-transform: uppercase;">PROVISIONAL AUTOPSY DIAGNOSES & INQUEST CLASSIFICATION</div>', unsafe_allow_html=True)
+        col_c1, col_c2 = st.columns([1.25, 0.75])
+        with col_c1:
+            cause_of_death_input = st.text_input(
+                "Provisional Cause of Death (Anatomical / Pathological Finding):",
+                value="ASPHYXIA AS A RESULT OF CONSTRICTION OF NECK (PENDING TOXICOLOGY & HISTOLOGY)",
+                help="Anatomical / pathological trauma diagnosis or mechanical cause (e.g. Asphyxia, Craniofacial Trauma, Hypovolemic Shock, Pending Chemical Viscera Analysis)."
+            )
+        with col_c2:
+            manner_of_death_input = st.selectbox(
+                "Manner of Death:",
+                [
+                    "Matter under judicial inquiry / Forensic Inquest",
+                    "Homicide (Suspected / Under Investigation)",
+                    "Suicide",
+                    "Accidental",
+                    "Natural / Pathological",
+                    "Undetermined / Pending Viscera & Histology",
+                ],
+                index=0,
+                help="Legal classification of manner of death for coroner/magistrate inquest proceedings."
+            )
+
     # -------------------------------------------------------------
     # STEP 2: MORPHOLOGICAL SIGNS AUTOPSY INSPECTION (VISUAL PANELS)
     # -------------------------------------------------------------
@@ -1866,6 +1892,8 @@ elif st.session_state["view"] == "examination":
                         "rigor_obs": rigor_opt,
                         "bloat_obs": bloat_opt,
                         "discolor_obs": discolor_opt,
+                        "cause_of_death": cause_of_death_input,
+                        "manner_of_death": manner_of_death_input,
                         "micro_findings": f"Diagnostic bioindicator confirmation ({len(selected_taxa_current)} verified taxa): {', '.join([t.replace('_', ' ') for t in selected_taxa_current[:4]])} predominant.",
                     }
                     st.success("Microbial succession profile verified. Quantile PMI estimated.")
@@ -2002,15 +2030,25 @@ elif st.session_state["view"] == "examination":
                 </div>
 
                 <div style="background-color: #273637; border-left: 3px solid var(--color-bioluminescent-lime); padding: 16px; border-radius: 0 8px 8px 0; margin-bottom: 16px;">
-                    <div class="mono-tag" style="color: var(--color-bioluminescent-lime); margin-bottom: 6px;">MEDICO-LEGAL OPINION: TIME ELAPSED SINCE DEATH</div>
+                    <div class="mono-tag" style="color: var(--color-bioluminescent-lime); margin-bottom: 6px;">MEDICO-LEGAL OPINION: TIME & CAUSE OF DEATH</div>
                     <div style="font-size: 17px; color: var(--color-paper); margin-bottom: 4px;">
                         <b>Estimated Time Elapsed:</b> {p_est:.1f} Days (approx. {p_est*24.0:.0f} Hours prior to examination)
                     </div>
                     <div style="font-size: 14px; color: #dbeafe; margin-bottom: 4px;">
                         <b>Probable Forensic Window:</b> {p_low:.1f} to {p_high:.1f} Days prior to recovery
                     </div>
-                    <div style="font-size: 13px; color: var(--color-graphite);">
+                    <div style="font-size: 13px; color: var(--color-graphite); margin-bottom: 12px;">
                         <b>Calculated Calendar Date of Death:</b> {dt_earliest.strftime('%d/%m/%Y')} to {dt_latest.strftime('%d/%m/%Y')} (Most Probable: {dt_most_likely.strftime('%d/%m/%Y')})
+                    </div>
+                    <div style="border-top: 1px solid #384d4e; padding-top: 10px; display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; font-size: 13px;">
+                        <div>
+                            <span class="mono-tag" style="font-size: 10px; color: #f87171;">PROVISIONAL CAUSE OF DEATH</span>
+                            <div style="color: var(--color-paper); font-weight: 500; margin-top: 3px;">{case_info.get('cause_of_death', 'Pending Inquest')}</div>
+                        </div>
+                        <div>
+                            <span class="mono-tag" style="font-size: 10px; color: var(--color-graphite);">MANNER OF DEATH</span>
+                            <div style="color: #cbd5e1; margin-top: 3px;">{case_info.get('manner_of_death', 'Matter under judicial inquiry')}</div>
+                        </div>
                     </div>
                 </div>
             </div>
