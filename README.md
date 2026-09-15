@@ -65,7 +65,7 @@ Forensic determination of the time elapsed since death (Postmortem Interval, **P
 
 ## Platform Architecture & Core Workflows
 
-### View 1: Forensic Overview & Succession Matrix (`?view=landing`)
+### View 1: Forensic Overview & Succession Matrix
 - **Kinetic WebGL Hero:** High-performance canvas visualizing dynamic microbial particle flow and postmortem dispersion.
 - **Microbial Succession Waves:**
   - *Wave 1: Fresh / Early Stage (0–3 Days)* &bull; Dominated by aerotolerant mucosal and dermal colonizers (*Staphylococcus*, *Streptococcus*, *Cutibacterium*).
@@ -73,7 +73,7 @@ Forensic determination of the time elapsed since death (Postmortem Interval, **P
   - *Wave 3: Advanced Skeletonization & Soil Leaching (8–25+ Days)* &bull; Proliferation of environmental saprophytes and soil actinomycetes (*Pseudomonas fluorescens*, *Bacillus subtilis*, *Streptomyces albus*).
 - **Minimalist Dispatch Footer:** Streamlined platform navigation, jurisdiction notifications, and research advisories.
 
-### View 2: Medical Examiner Diagnostic Triage Suite (`?view=examination`)
+### View 2: Medical Examiner Diagnostic Triage Suite 
 - **Step 01 &bull; Autopsy Particulars:** Standard case registry inputs (PM Report Number, Police Station, Inquest Reference, Deceased Demographics, Ambient Temperatures, Specimen Swab Anatomical Sites).
 - **Step 02 &bull; Morphological Observation Matrix:** Interactive forensic triage correlating macroscopic postmortem findings (corneal clouding, algor status, venous marbling, abdominal bloating, purge fluid) with estimated physiological decay windows.
 - **Step 03 &bull; Bioindicator Image Viewports:** 19 dedicated clinical photographic viewports featuring real microscopy JPEG assets, optical viewfinder reticles, Gram-stain classifications, and biochemical mechanism breakdowns.
