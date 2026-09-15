@@ -13,30 +13,8 @@ import hashlib
 import time
 from typing import Dict, Any, Tuple, Optional
 
-# Authorized default demonstration personnel for sandbox / offline evaluation mode
-DEMO_REGISTERED_OFFICERS = {
-    "coroner@necrotrace.gov": {
-        "password": "necrotrace2026",
-        "name": "Dr. Tanish Walture",
-        "role": "Chief Forensic Pathologist",
-        "badge": "CFS-9042",
-        "station": "Central Forensic Science Laboratory",
-    },
-    "examiner@police.gov": {
-        "password": "investigation",
-        "name": "Insp. V. K. Sharma",
-        "role": "Senior Investigating Officer",
-        "badge": "IPS-4482",
-        "station": "State Police Crime Branch",
-    },
-    "doctor@forensics.org": {
-        "password": "evidence",
-        "name": "Dr. A. Sen, M.D.",
-        "role": "Forensic Medical Examiner",
-        "badge": "WBMC-45826",
-        "station": "Department of Forensic Medicine",
-    },
-}
+# Retained empty for backwards-compatibility; sandbox demo accounts removed
+DEMO_REGISTERED_OFFICERS: Dict[str, Any] = {}
 
 
 # In-memory server-side active officer session cache (preserves auth across view navigations & reloads)
@@ -232,10 +210,7 @@ def check_email_registered_in_firebase(email: str) -> Tuple[bool, str]:
     clean_email = str(email or "").strip().lower()
 
     if not is_firebase_configured():
-        # Evaluation Sandbox Check
-        if clean_email in DEMO_REGISTERED_OFFICERS:
-            return True, "Email found in Departmental Medical Examiner Registry (Sandbox Mode)."
-        return False, "Email not found in Departmental Medical Examiner Registry."
+        return False, "Firebase configuration not detected. Please verify credentials in secrets.toml."
 
     # Live Firebase Identity Toolkit API
     url = f"https://identitytoolkit.googleapis.com/v1/accounts:createAuthUri?key={api_key}"
@@ -493,42 +468,13 @@ def sign_in_officer(email: str, password: str) -> Dict[str, Any]:
     api_key = cfg.get("api_key", "")
     project_id = cfg.get("project_id", "")
 
-    # 1. Fallback if not configured (Evaluation Sandbox)
+    # 1. Verification if not configured
     if not is_firebase_configured():
-        if clean_email in DEMO_REGISTERED_OFFICERS:
-            user_data = DEMO_REGISTERED_OFFICERS[clean_email]
-            if user_data["password"] == password:
-                now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-                user_data["last_login"] = now_iso
-                officer_info = {
-                    "name": user_data["name"],
-                    "role": user_data["role"],
-                    "badge": user_data["badge"],
-                    "station": user_data["station"],
-                    "email": clean_email,
-                    "local_id": f"sandbox-{clean_email.split('@')[0]}",
-                    "firestore_verified": True,
-                    "database": "Evaluation Sandbox",
-                    "last_login": now_iso,
-                }
-                set_active_officer_session(officer_info)
-                return {
-                    "success": True,
-                    "email": clean_email,
-                    "message": f"Authentication successful. Welcome, {user_data['name']}.",
-                    "officer_info": officer_info,
-                }
-            return {
-                "success": False,
-                "email": clean_email,
-                "message": "Invalid password for registered medical examiner.",
-                "code": "INVALID_PASSWORD",
-            }
         return {
             "success": False,
             "email": clean_email,
-            "message": f"Officer email '{clean_email}' is not registered in the Forensic Registry.",
-            "code": "EMAIL_NOT_FOUND",
+            "message": "Firebase configuration not detected. Please add FIREBASE_WEB_API_KEY and FIREBASE_PROJECT_ID to your secrets.toml.",
+            "code": "CONFIG_MISSING",
         }
 
     # 2. Live Firebase Identity Toolkit Authentication
@@ -695,36 +641,13 @@ def register_officer(
     project_id = cfg.get("project_id", "")
     now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
-    # Fallback if not configured (Evaluation Sandbox)
+    # Verification if not configured
     if not is_firebase_configured():
-        if clean_email in DEMO_REGISTERED_OFFICERS:
-            return {
-                "success": False,
-                "message": "Email already exists in the Forensic Registry.",
-                "code": "EMAIL_EXISTS",
-            }
-        officer_info = {
-            "name": clean_name,
-            "badge": clean_badge,
-            "station": clean_station,
-            "role": clean_role,
-            "email": clean_email,
-            "local_id": f"sandbox-{clean_email.split('@')[0]}",
-            "firestore_verified": True,
-            "database": "Evaluation Sandbox",
-            "enrolled_at": now_iso,
-            "last_login": now_iso,
-        }
-        DEMO_REGISTERED_OFFICERS[clean_email] = {
-            "password": password,
-            **officer_info
-        }
-        set_active_officer_session(officer_info)
         return {
-            "success": True,
+            "success": False,
             "email": clean_email,
-            "message": "Officer registered successfully.",
-            "officer_info": officer_info,
+            "message": "Firebase configuration not detected. Please add FIREBASE_WEB_API_KEY and FIREBASE_PROJECT_ID to your secrets.toml.",
+            "code": "CONFIG_MISSING",
         }
 
     # 1. Create account in Firebase Auth

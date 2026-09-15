@@ -8,6 +8,7 @@ Developed by Team BroomWroom (Lead: Tanish Walture).
 """
 
 from datetime import datetime, timezone, timedelta
+import time
 from pathlib import Path
 import streamlit as st
 import streamlit.components.v1 as components
@@ -131,23 +132,6 @@ if not st.session_state.get("authenticated_officer"):
             }
             st.session_state["authenticated_officer"] = officer_obj
             set_active_officer_session(officer_obj)
-        elif query_auth.startswith("sandbox-"):
-            email_key = query_auth.replace("sandbox-", "")
-            for demo_email, demo_data in DEMO_REGISTERED_OFFICERS.items():
-                if demo_email.startswith(email_key):
-                    officer_obj = {
-                        "name": demo_data["name"],
-                        "role": demo_data["role"],
-                        "badge": demo_data["badge"],
-                        "station": demo_data["station"],
-                        "email": demo_email,
-                        "local_id": query_auth,
-                        "firestore_verified": True,
-                        "database": "Evaluation Sandbox",
-                    }
-                    st.session_state["authenticated_officer"] = officer_obj
-                    set_active_officer_session(officer_obj)
-                    break
 
 # Always sync active session when authenticated_officer is present
 if st.session_state.get("authenticated_officer"):
@@ -1001,18 +985,6 @@ if not st.session_state.get("authenticated_officer") and st.session_state.get("v
                         st.rerun()
                     else:
                         st.error(auth_res.get('message'))
-
-            if not fb_active:
-                st.markdown(
-                    '<hr class="hairline-dark" style="margin: 18px 0 12px 0;">', unsafe_allow_html=True)
-                st.markdown(
-                    '<div style="font-size: 11px; color: #8892b0; font-family: var(--font-mono);">'
-                    '<b>Evaluation Sandbox Credentials</b>:<br>'
-                    '&bull; <code>coroner@necrotrace.gov</code> / <code>necrotrace2026</code> (Dr. Tanish Walture)<br>'
-                    '&bull; <code>examiner@police.gov</code> / <code>investigation</code> (Insp. V. K. Sharma)'
-                    '</div>',
-                    unsafe_allow_html=True
-                )
 
         with auth_tab_up:
             st.markdown(
@@ -2696,11 +2668,7 @@ elif st.session_state["view"] == "verify":
     # -------------------------------------------------------------------------
     if not is_authed:
         firebase_online = is_firebase_configured()
-        fb_status_html = (
-            '<span style="font-family: var(--font-mono); font-size: 11px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid #10b981; padding: 3px 10px; border-radius: 9999px;">FIREBASE AUTH: LIVE CLOUD GATEWAY</span>'
-            if firebase_online else
-            '<span style="font-family: var(--font-mono); font-size: 11px; background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid #f59e0b; padding: 3px 10px; border-radius: 9999px;">FIREBASE AUTH: SANDBOX EVALUATION DIRECTORY</span>'
-        )
+        fb_status_html = '<span style="font-family: var(--font-mono); font-size: 11px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid #10b981; padding: 3px 10px; border-radius: 9999px;">MEDICO-LEGAL CLOUD GATEWAY</span>'
 
         render_clean_html(f"""
         <div style="background: #172425; border: 1.5px solid #059669; border-radius: 14px; padding: 24px; margin-bottom: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.35);">
@@ -2724,9 +2692,6 @@ elif st.session_state["view"] == "verify":
         ])
 
         with auth_tab_signin:
-            if not firebase_online:
-                st.info("<b>Sandbox Mode Active</b>: Pre-registered test examiner accounts: <code>coroner@necrotrace.gov</code> (password: <code>necrotrace2026</code>) or <code>examiner@police.gov</code> (password: <code>investigation</code>). To connect your live Firebase project, add <code>FIREBASE_WEB_API_KEY</code> to Streamlit secrets.")
-
             v_col_email, v_col_pass = st.columns([1.2, 1.0])
             with v_col_email:
                 v_email = st.text_input(
@@ -2868,8 +2833,8 @@ elif st.session_state["view"] == "verify":
             "pm_report_no": case_param,
             "police_station": ps_param,
             "inquest_no": inq_param,
-            "date_of_exam": time.strftime("%Y-%m-%d"),
-            "time_of_exam": "09:30 HRS",
+            "date_of_exam": datetime.now().strftime("%Y-%m-%d"),
+            "time_of_exam": datetime.now().strftime("%H:%M HRS"),
             "analyst": doc_param,
             "deceased_name": dec_param,
             "deceased_age_sex": "Approx. 35-40 Yrs / Male",
