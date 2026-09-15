@@ -192,66 +192,6 @@ This guarantees that:
 
 ---
 
-## Quickstart & Local Installation
-
-### Prerequisites
-- Python 3.10, 3.11, or 3.12
-- Git
-
-### Installation Steps
-
-1. **Clone the Repository:**
-   ```bash
-   git clone https://github.com/BroomWroom/NecroTrace.git
-   cd NecroTrace
-   ```
-
-2. **Create and Activate a Virtual Environment:**
-   ```bash
-   # Windows (PowerShell)
-   python -m venv venv
-   .\venv\Scripts\Activate.ps1
-
-   # macOS / Linux
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
-
-3. **Install Dependencies:**
-   ```bash
-   pip install --upgrade pip
-   pip install -r requirements.txt
-   ```
-
-4. **Launch the Application:**
-   ```bash
-   streamlit run app.py
-   ```
-   Open your browser to `http://localhost:8501`.
-
----
-
-## Cloud Deployment Guide
-
-### Deploy to Streamlit Community Cloud (Recommended — 100% Free)
-1. Push your repository to GitHub:
-   ```bash
-   git add .
-   git commit -m "Update NecroTrace platform"
-   git push origin main
-   ```
-2. Navigate to [share.streamlit.io](https://share.streamlit.io/) and connect your GitHub account.
-3. Select:
-   - **Repository:** `BroomWroom/NecroTrace`
-   - **Branch:** `main`
-   - **Main file path:** `app.py`
-4. Click **Deploy!** The pre-configured `.streamlit/config.toml` will automatically configure the darkroom theme and server parameters.
-
-### Deploy to Render / Railway
-- **Build Command:** `pip install -r requirements.txt`
-- **Start Command:** `streamlit run app.py --server.port $PORT --server.address 0.0.0.0`
-
----
 
 ## Evidentiary Standards & Legal Compliance
 
@@ -262,13 +202,7 @@ NecroTrace was architected to satisfy judicial evidentiary standards for scienti
 
 ---
 
-## Team & Attribution
 
-**NecroTrace** was developed by **Team BroomWroom** for **VMedithon 3.0** (Healthcare & Metagenomics Track) at the **Vellore Institute of Technology (VIT), Chennai**.
-
-- **Lead Investigator:** Tanish Walture ([tanishwalture@gmail.com](mailto:tanishwalture@gmail.com))
-- **Repository:** [github.com/BroomWroom/NecroTrace](https://github.com/BroomWroom/NecroTrace)
-- **Institutional Host:** VIT Chennai &bull; VMedithon 3.0
 
 ---
 
