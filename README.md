@@ -200,22 +200,13 @@ To comply with ISO 17025 and Federal Rules of Evidence on chain-of-custody integ
 
 1. **Step 5 Report Locking**: When an autopsy dossier is synthesized, the PDF download is encrypted/locked by default.
 2. **High-Contrast QR Code**: The system encodes a case-specific payload into a high-contrast SVG QR seal pointing to `?view=verify`.
-3. **Mobile Verification Portal (`?view=verify`)**:
+3. **Mobile Verification Portal**:
    - An officer scans the QR code on a mobile device or opens the portal.
-   - The portal queries **Firebase Authentication (Identity Toolkit REST API)** to verify that the officer's email is registered in the Departmental Medical Examiner Directory.
+   - The portal queries to verify that the officer's email is registered in the Departmental Medical Examiner Directory.
    - Once authenticated, the officer can:
      - **Directly download** the certified court-admissible Form PM-5372 PDF onto their mobile device.
-     - Obtain a **6-Digit Workstation Release Passcode** (e.g. `NC-3162`).
-4. **Dual-Channel Terminal Release**: Entering the 6-digit release code back into the primary mortuary workstation terminal instantly unlocks desktop downloading and physical printing.
-
-### Firebase Credentials Configuration
-To connect a live Firebase project:
-1. Copy `.streamlit/secrets.toml.example` to `.streamlit/secrets.toml` (locally) or add to **Streamlit Community Cloud $\rightarrow$ App Settings $\rightarrow$ Secrets**:
-   ```toml
-   FIREBASE_WEB_API_KEY = "AIzaSy..."
-   FIREBASE_PROJECT_ID = "necrotrace-forensics"
-   ```
-2. If credentials are not yet configured, the system gracefully activates **Sandbox Evaluation Mode** with pre-configured demo medical examiner accounts (`coroner@necrotrace.gov` / `examiner@police.gov`).
+     - Obtain a **Dynamic 6-Digit Workstation Release Passcode** (e.g. `NC-148895`). This code is dynamically generated using a session seed passed via the QR code and synchronized in real-time with the desktop session.
+4. **Dual-Channel Terminal Release**: Entering the 6-digit release code back into the primary mortuary workstation terminal instantly unlocks desktop downloading and physical printing. The system features a 3-minute rolling TOTP window and a refresh mechanism for robust verification.
 
 ---
 
