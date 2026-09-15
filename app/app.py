@@ -95,13 +95,49 @@ GLOBAL_CSS = """
         --font-mono: 'Roboto Mono', monospace;
     }
 
-    /* Streamlit overrides */
-    header[data-testid="stHeader"] { display: none !important; }
+    /* Streamlit overrides - Full bleed support across all versions */
+    header[data-testid="stHeader"],
+    div[data-testid="stHeader"] { display: none !important; }
     div[data-testid="stToolbar"] { display: none !important; }
     footer { display: none !important; }
-    .main .block-container {
+
+    .stApp,
+    div[data-testid="stAppViewContainer"],
+    section[data-testid="stMain"],
+    div[data-testid="stMain"],
+    .stMain,
+    section.main {
+        background-color: var(--color-abyssal-ink) !important;
         padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    div[data-testid="stMainBlockContainer"],
+    div[data-testid="stAppViewBlockContainer"],
+    .main .block-container,
+    .stMainBlockContainer,
+    .block-container,
+    div[class*="stMainBlockContainer"],
+    div[class*="block-container"] {
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
         max-width: 100% !important;
+        width: 100% !important;
+        margin: 0 !important;
+    }
+
+    div[data-testid="stVerticalBlock"],
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        gap: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    div[data-testid="stElementContainer"] {
+        margin-bottom: 0 !important;
+        padding: 0 !important;
     }
 
     /* Core typography reset - Pure 400 weight discipline */
@@ -390,7 +426,20 @@ SMOOTH_SCROLL_CONTROLLER_HTML = """
             if (scrollContainer) {
                 scrollContainer.style.setProperty('overflow-y', 'auto', 'important');
                 scrollContainer.style.setProperty('scroll-behavior', 'smooth', 'important');
+                scrollContainer.style.setProperty('background-color', '#222f30', 'important');
             }
+
+            // Zero out all default Streamlit block container padding for edge-to-edge full bleed
+            const blockContainers = parentDoc.querySelectorAll('[data-testid="stMainBlockContainer"], .block-container, [data-testid="stMain"]');
+            blockContainers.forEach(function(el) {
+                el.style.setProperty('padding-top', '0px', 'important');
+                el.style.setProperty('padding-bottom', '0px', 'important');
+                el.style.setProperty('padding-left', '0px', 'important');
+                el.style.setProperty('padding-right', '0px', 'important');
+                el.style.setProperty('max-width', '100%', 'important');
+                el.style.setProperty('width', '100%', 'important');
+                el.style.setProperty('margin', '0px', 'important');
+            });
 
             // Smooth anchor links navigation via event delegation
             if (!parentWin.__smooth_scroll_delegated) {
@@ -446,47 +495,339 @@ model, err = load_trained_pipeline()
 # =============================================================================
 if st.session_state["view"] == "landing":
 
-    # --- ARCHITECTURAL INSTRUMENT NAV ---
-    nav_html = """
-    <div style="padding: 24px 48px; border-bottom: 1px solid var(--color-graphite); display: flex; align-items: center; justify-content: space-between; max-width: 1300px; margin: 0 auto;">
-        <div style="display: flex; align-items: center; gap: 16px;">
-            <span style="font-family: var(--font-mono); font-size: 14px; letter-spacing: -0.02em; color: var(--color-paper);">
-                NECROTRACE
-            </span>
-            
+    # --- SECTION 01: FULL-VIEWPORT HERO SECTION WITH KINETIC GRID & FLOATING NAV ---
+    hero_markup = """
+    <div id="kinetic-hero-container" style="position: relative; width: 100%; min-height: 100vh; overflow: hidden; background-color: var(--color-abyssal-ink); cursor: crosshair; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
+        <canvas id="kinetic-grid-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none;"></canvas>
+        
+        <!-- Architectural Top Nav (Floating over the kinetic canvas) -->
+        <header style="position: relative; z-index: 10; width: 100%; border-bottom: 1px solid rgba(77, 87, 87, 0.45); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); background: rgba(34, 47, 48, 0.55); pointer-events: auto;">
+            <div style="padding: 22px 48px; display: flex; align-items: center; justify-content: space-between; max-width: 1300px; margin: 0 auto; box-sizing: border-box;">
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <span style="font-family: var(--font-mono); font-size: 14px; letter-spacing: -0.02em; color: var(--color-paper); font-weight: 500;">
+                        NECROTRACE
+                    </span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 24px;">
+                    <a href="#platform" style="font-family: var(--font-mono); font-size: 13px; color: var(--color-graphite); text-decoration: none; transition: color 0.15s ease;">01 PLATFORM</a>
+                    <a href="#succession" style="font-family: var(--font-mono); font-size: 13px; color: var(--color-graphite); text-decoration: none; transition: color 0.15s ease;">02 SUCCESSION</a>
+                    <a href="#dossier" style="font-family: var(--font-mono); font-size: 13px; color: var(--color-graphite); text-decoration: none; transition: color 0.15s ease;">03 CASE DOSSIER</a>
+                    <a href="?view=examination" target="_self" style="font-family: var(--font-mono); font-size: 12px; color: var(--color-paper); text-decoration: none; border: 1px solid var(--color-graphite); padding: 8px 16px; border-radius: 6px; letter-spacing: -0.02em; background: rgba(255, 255, 255, 0.03); transition: all 0.15s ease;">EXAMINATION ROOM &rarr;</a>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Hero Body (Centered in visible viewport) -->
+        <div style="position: relative; z-index: 10; width: 100%; max-width: 1300px; margin: 0 auto; padding: 48px 48px 64px 48px; box-sizing: border-box; flex: 1; display: flex; flex-direction: column; justify-content: center; pointer-events: auto;">
+            <div class="section-counter" style="backdrop-filter: blur(8px); background: rgba(34, 47, 48, 0.75); width: fit-content; margin-bottom: 24px;">
+                <span class="signal-dot"></span>
+                01 / FORENSIC METAGENOMICS
+            </div>
+            <h1 class="hero-title" style="text-shadow: 0 2px 24px rgba(0,0,0,0.65);">The microbial clock of human decomposition.</h1>
+            <p class="hero-sub" style="text-shadow: 0 2px 14px rgba(0,0,0,0.65);">
+                High-throughput metagenomic taxonomic profiling and quantile regression to infer postmortem intervals with quantifiable evidentiary certainty.
+            </p>
+            <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 12px;">
+                <a href="?view=examination" target="_self" class="sober-btn-dark">COMMENCE POST-MORTEM EXAMINATION</a>
+                <a href="#platform" class="sober-btn-ghost">METHODOLOGY SPECIFICATIONS</a>
+            </div>
         </div>
-        <div style="display: flex; align-items: center; gap: 24px;">
-            <a href="#platform" style="font-family: var(--font-mono); font-size: 13px; color: var(--color-graphite); text-decoration: none;">01 PLATFORM</a>
-            <a href="#succession" style="font-family: var(--font-mono); font-size: 13px; color: var(--color-graphite); text-decoration: none;">02 SUCCESSION</a>
-            <a href="#dossier" style="font-family: var(--font-mono); font-size: 13px; color: var(--color-graphite); text-decoration: none;">03 CASE DOSSIER</a>
-            <a href="?view=examination" target="_self" style="font-family: var(--font-mono); font-size: 12px; color: var(--color-paper); text-decoration: none; border: 1px solid var(--color-graphite); padding: 7px 14px; border-radius: 6px; letter-spacing: -0.02em;">EXAMINATION ROOM &rarr;</a>
-        </div>
+
+        <!-- Clean bottom border marking the exact end of hero before next section -->
+        <div style="position: relative; z-index: 10; width: 100%; border-bottom: 1px solid rgba(77, 87, 87, 0.35);"></div>
     </div>
     """
-    render_clean_html(nav_html)
+    render_clean_html(hero_markup)
 
-    # --- SECTION 01: HERO SECTION (ABYSSAL INK CANVAS #222f30) ---
-    render_clean_html("""
-    <div style="max-width: 1200px; margin: 0 auto; padding: 100px 40px 40px 40px;">
-        <div class="section-counter">
-            <span class="signal-dot"></span>
-            01 / FORENSIC METAGENOMICS
-        </div>
-        <h1 class="hero-title">The microbial clock of human decomposition.</h1>
-        <p class="hero-sub">
-            High-throughput metagenomic taxonomic profiling and quantile regression to infer postmortem intervals with quantifiable evidentiary certainty.
-        </p>
-        <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 8px;">
-            <a href="?view=examination" target="_self" class="sober-btn-dark">COMMENCE POST-MORTEM EXAMINATION</a>
-            <a href="#platform" class="sober-btn-ghost">METHODOLOGY SPECIFICATIONS</a>
-        </div>
-    </div>
-    <hr class="hairline-dark" style="max-width: 1200px; margin: 60px auto;">
-    """)
+    # Interactive Kinetic Grid Engine Controller
+    KINETIC_GRID_CONTROLLER_HTML = """
+    <script>
+    (function() {
+        function initKineticGrid() {
+            try {
+                const parentDoc = window.parent.document;
+                const parentWin = window.parent;
+                if (!parentDoc || !parentWin) return;
+
+                const canvas = parentDoc.getElementById('kinetic-grid-canvas');
+                const container = parentDoc.getElementById('kinetic-hero-container');
+                if (!canvas || !container) {
+                    setTimeout(initKineticGrid, 120);
+                    return;
+                }
+
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return;
+
+                if (parentWin.__necro_kinetic_raf) {
+                    parentWin.cancelAnimationFrame(parentWin.__necro_kinetic_raf);
+                }
+
+                const CELL_SIZE = 54;
+                const INFLUENCE_RADIUS = 260;
+                const MAX_WARP = 24;
+                const DOT_SPACING = 28;
+                const LERP_SPEED = 0.08;
+
+                const LINE_BASE = { r: 255, g: 255, b: 255, a: 0.12 };
+                const NODE_BASE_RADIUS = 1.8;
+                const NODE_ACTIVE_RADIUS = 3.2;
+
+                const theme = {
+                    bg: '#222f30',
+                    lineActive: { r: 206, g: 247, b: 158, a: 0.8 },
+                    nodeActive: { r: 206, g: 247, b: 158, a: 1.0 },
+                    glow: '206,247,158',
+                    ripple: '206,247,158',
+                };
+
+                function lerpN(a, b, t) {
+                    return a + (b - a) * t;
+                }
+
+                function lerpColor(base, active, t) {
+                    const r = Math.round(lerpN(base.r, active.r, t));
+                    const g = Math.round(lerpN(base.g, active.g, t));
+                    const b = Math.round(lerpN(base.b, active.b, t));
+                    const a = lerpN(base.a, active.a, t);
+                    return `rgba(${r},${g},${b},${a.toFixed(3)})`;
+                }
+
+                let W = container.offsetWidth || parentWin.innerWidth;
+                let H = container.offsetHeight || parentWin.innerHeight;
+                let dotCanvas = null;
+
+                function renderDotPattern() {
+                    if (!W || !H) return;
+                    dotCanvas = parentDoc.createElement('canvas');
+                    dotCanvas.width = W;
+                    dotCanvas.height = H;
+                    const dctx = dotCanvas.getContext('2d');
+                    if (!dctx) return;
+                    dctx.fillStyle = "rgba(255, 255, 255, 0.05)";
+                    const dotSpacing = 28;
+                    for (let x = dotSpacing / 2; x < W; x += dotSpacing) {
+                        for (let y = dotSpacing / 2; y < H; y += dotSpacing) {
+                            dctx.beginPath();
+                            dctx.arc(x, y, 0.8, 0, Math.PI * 2);
+                            dctx.fill();
+                        }
+                    }
+                }
+
+                const mouse = { x: -9999, y: -9999 };
+                const targetMouse = { x: -9999, y: -9999 };
+                const ripples = [];
+
+                function setSize() {
+                    if (!container || !canvas) return;
+                    W = container.offsetWidth || parentWin.innerWidth;
+                    H = container.offsetHeight || parentWin.innerHeight;
+                    const dpr = Math.min(parentWin.devicePixelRatio || 1, 2);
+                    canvas.width = Math.floor(W * dpr);
+                    canvas.height = Math.floor(H * dpr);
+                    canvas.style.width = W + 'px';
+                    canvas.style.height = H + 'px';
+                    ctx.setTransform(1, 0, 0, 1, 0, 0);
+                    ctx.scale(dpr, dpr);
+                    renderDotPattern();
+                }
+                setSize();
+                parentWin.addEventListener('resize', setSize);
+
+                container.onmousemove = function(e) {
+                    const rect = container.getBoundingClientRect();
+                    targetMouse.x = e.clientX - rect.left;
+                    targetMouse.y = e.clientY - rect.top;
+                };
+
+                container.onmouseleave = function() {
+                    targetMouse.x = -9999;
+                    targetMouse.y = -9999;
+                };
+
+                container.onclick = function(e) {
+                    const rect = container.getBoundingClientRect();
+                    ripples.push({
+                        x: e.clientX - rect.left,
+                        y: e.clientY - rect.top,
+                        radius: 0,
+                        opacity: 1,
+                        born: performance.now()
+                    });
+                };
+
+                function getWarpedPoint(gx, gy, col, row, cols, rows) {
+                    const edgeMargin = 1.5;
+                    const colPin = Math.min(col / edgeMargin, (cols - 1 - col) / edgeMargin, 1);
+                    const rowPin = Math.min(row / edgeMargin, (rows - 1 - row) / edgeMargin, 1);
+                    const pinFactor = colPin * colPin * rowPin * rowPin;
+
+                    const dx = gx - mouse.x;
+                    const dy = gy - mouse.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const proximity = Math.max(0, 1 - dist / INFLUENCE_RADIUS) * pinFactor;
+
+                    let rx = 0, ry = 0;
+                    for (let i = 0; i < ripples.length; i++) {
+                        const r = ripples[i];
+                        const rdx = gx - r.x;
+                        const rdy = gy - r.y;
+                        const rdist = Math.sqrt(rdx * rdx + rdy * rdy);
+                        const waveWidth = 55;
+                        const diff = rdist - r.radius;
+                        if (Math.abs(diff) < waveWidth) {
+                            const strength = (1 - Math.abs(diff) / waveWidth) * r.opacity * 18 * pinFactor;
+                            const angle = Math.atan2(rdy, rdx);
+                            const sign = diff < 0 ? -1 : 1;
+                            rx += Math.cos(angle) * strength * sign * -1;
+                            ry += Math.sin(angle) * strength * sign * -1;
+                        }
+                    }
+
+                    if (dist < INFLUENCE_RADIUS && dist > 0 && pinFactor > 0) {
+                        const t = dist / INFLUENCE_RADIUS;
+                        const eased = t < 0.01 ? 0 : (1 - t) * (1 - t) * Math.min(1, dist / 60);
+                        const warpAmt = eased * MAX_WARP * pinFactor;
+                        const angle = Math.atan2(dy, dx);
+                        return {
+                            pt: {
+                                x: gx - Math.cos(angle) * warpAmt + rx,
+                                y: gy - Math.sin(angle) * warpAmt + ry
+                            },
+                            proximity
+                        };
+                    }
+
+                    return { pt: { x: gx + rx, y: gy + ry }, proximity };
+                }
+
+                function draw(now) {
+                    ctx.clearRect(0, 0, W, H);
+                    ctx.fillStyle = theme.bg;
+                    ctx.fillRect(0, 0, W, H);
+
+                    // High-performance pre-rendered dot pattern
+                    if (dotCanvas) {
+                        ctx.drawImage(dotCanvas, 0, 0);
+                    }
+
+                    // Update ripple shockwaves
+                    for (let i = ripples.length - 1; i >= 0; i--) {
+                        const r = ripples[i];
+                        const age = (now - r.born) / 1000;
+                        r.radius = Math.max(0, age * 400);
+                        r.opacity = Math.max(0, 1 - age * 1.2);
+                        if (r.opacity <= 0) ripples.splice(i, 1);
+                    }
+
+                    const cols = Math.max(2, Math.ceil(W / CELL_SIZE)) + 1;
+                    const rows = Math.max(2, Math.ceil(H / CELL_SIZE)) + 1;
+                    const cellW = W / (cols - 1);
+                    const cellH = H / (rows - 1);
+
+                    const pts = [];
+                    const prox = [];
+
+                    for (let row = 0; row < rows; row++) {
+                        pts[row] = [];
+                        prox[row] = [];
+                        for (let col = 0; col < cols; col++) {
+                            const res = getWarpedPoint(col * cellW, row * cellH, col, row, cols, rows);
+                            pts[row][col] = res.pt;
+                            prox[row][col] = res.proximity;
+                        }
+                    }
+
+                    function drawSeg(p1, p2, pr1, pr2) {
+                        const avg = (pr1 + pr2) / 2;
+                        const t = avg * avg * (3 - 2 * avg);
+                        ctx.beginPath();
+                        ctx.moveTo(p1.x, p1.y);
+                        ctx.lineTo(p2.x, p2.y);
+                        ctx.strokeStyle = lerpColor(LINE_BASE, theme.lineActive, t);
+                        ctx.lineWidth = lerpN(0.8, 1.5, t);
+                        ctx.stroke();
+                    }
+
+                    ctx.lineCap = "butt";
+
+                    for (let row = 0; row < rows; row++) {
+                        for (let col = 0; col < cols - 1; col++) {
+                            drawSeg(pts[row][col], pts[row][col + 1], prox[row][col], prox[row][col + 1]);
+                        }
+                    }
+
+                    for (let col = 0; col < cols; col++) {
+                        for (let row = 0; row < rows - 1; row++) {
+                            drawSeg(pts[row][col], pts[row + 1][col], prox[row][col], prox[row + 1][col]);
+                        }
+                    }
+
+                    // Intersection nodes with glowing highlights
+                    for (let row = 0; row < rows; row++) {
+                        for (let col = 0; col < cols; col++) {
+                            const p = pts[row][col];
+                            const pr = prox[row][col];
+                            const t = pr * pr * (3 - 2 * pr);
+                            const r = lerpN(NODE_BASE_RADIUS, NODE_ACTIVE_RADIUS, t);
+
+                            if (t > 0.28) {
+                                const glowR = r + lerpN(0, 6, (t - 0.28) / 0.72);
+                                const grd = ctx.createRadialGradient(p.x, p.y, r * 0.4, p.x, p.y, glowR);
+                                grd.addColorStop(0, `rgba(${theme.glow},${(t * 0.35).toFixed(3)})`);
+                                grd.addColorStop(1, `rgba(${theme.glow},0)`);
+                                ctx.beginPath();
+                                ctx.arc(p.x, p.y, glowR, 0, Math.PI * 2);
+                                ctx.fillStyle = grd;
+                                ctx.fill();
+                            }
+
+                            ctx.beginPath();
+                            ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+                            ctx.fillStyle = lerpColor({ r: 255, g: 255, b: 255, a: 0.18 }, theme.nodeActive, t);
+                            ctx.fill();
+                        }
+                    }
+
+                    // Ripple rings
+                    for (let i = 0; i < ripples.length; i++) {
+                        const r = ripples[i];
+                        ctx.beginPath();
+                        ctx.arc(r.x, r.y, Math.max(0, r.radius), 0, Math.PI * 2);
+                        ctx.strokeStyle = `rgba(${theme.ripple},${(r.opacity * 0.32).toFixed(3)})`;
+                        ctx.lineWidth = 1.5;
+                        ctx.stroke();
+                    }
+                }
+
+                function animate(now) {
+                    mouse.x = lerpN(mouse.x, targetMouse.x, LERP_SPEED);
+                    mouse.y = lerpN(mouse.y, targetMouse.y, LERP_SPEED);
+
+                    draw(now);
+                    parentWin.__necro_kinetic_raf = parentWin.requestAnimationFrame(animate);
+                }
+
+                parentWin.__necro_kinetic_raf = parentWin.requestAnimationFrame(animate);
+            } catch(e) {
+                console.error('[NecroTrace] Kinetic grid init error:', e);
+            }
+        }
+
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            initKineticGrid();
+        } else {
+            window.addEventListener('load', initKineticGrid);
+        }
+    })();
+    </script>
+    """
+    components.html(KINETIC_GRID_CONTROLLER_HTML, height=0)
 
     # --- SECTION 02: INSTRUMENTATION & ARCHITECTURE (DARK BAND #222f30) ---
     render_clean_html("""
-    <div id="platform" style="max-width: 1200px; margin: 0 auto; padding: 0 40px 80px 40px;">
+    <div id="platform" style="max-width: 1200px; margin: 0 auto; padding: 90px 40px 80px 40px;">
         <div class="section-counter">02 / INSTRUMENTATION</div>
         <div style="font-size: 36px; line-height: 1.2; letter-spacing: -0.006em; color: var(--color-paper); margin-bottom: 48px;">
             Quantitative bioinformatic succession architecture.
