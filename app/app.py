@@ -102,7 +102,7 @@ GLOBAL_CSS = """
     header[data-testid="stHeader"],
     div[data-testid="stHeader"] { display: none !important; }
     div[data-testid="stToolbar"] { display: none !important; }
-    footer { display: none !important; }
+    footer[data-testid="stFooter"], footer:not(.necrotrace-footer) { display: none !important; }
 
     .stApp,
     div[data-testid="stAppViewContainer"],
@@ -625,9 +625,10 @@ def get_microbe_svg(morphology_type: str, gram_stain: str) -> str:
 
 def get_microbe_card_banner(taxon_id: str, common_name: str, morphology_type: str, gram_stain: str) -> str:
     """
-    Renders the rich media banner for the microbial card matching Material Design specifications.
+    Renders the rich media banner for the microbial card.
+    Uses balanced 3:2 photographic proportions (230px height) to avoid wide stretching.
     Checks for user-provided real images in assets/microbes/{taxon_id}.[png|jpg|jpeg|webp|svg].
-    If none found, renders a high-contrast geometric placeholder banner with circle + triangle.
+    If none found, renders an elegant viewfinder placeholder banner.
     """
     exts = [".png", ".jpg", ".jpeg", ".webp", ".svg"]
     found_asset = None
@@ -642,43 +643,52 @@ def get_microbe_card_banner(taxon_id: str, common_name: str, morphology_type: st
             with open(found_asset, "rb") as img_file:
                 b64 = base64.b64encode(img_file.read()).decode("utf-8")
             mime = "image/png" if found_asset.endswith(".png") else "image/jpeg"
-            return f'''<div style="width: 100%; height: 180px; overflow: hidden; background: #141c1d; border-bottom: 1px solid #2e3b3c;"><img src="data:{mime};base64,{b64}" style="width: 100%; height: 100%; object-fit: cover; display: block;" alt="{common_name}" /></div>'''
+            return f'''<div style="width: 100%; height: 230px; overflow: hidden; background: #121a1b; border-bottom: 1px solid #2d3b3c;"><img src="data:{mime};base64,{b64}" style="width: 100%; height: 100%; object-fit: cover; display: block;" alt="{common_name}" /></div>'''
         except Exception:
             pass
 
-    # High-contrast geometric placeholder SVG matching user reference diagram
+    # Viewfinder Geometric Placeholder (Balanced 380x230 camera aspect ratio)
     accent = "#b882ff" if "positive" in gram_stain.lower() else "#ff6b8b"
-    return f'''<div style="width: 100%; height: 180px; overflow: hidden; position: relative; background: #182324; border-bottom: 1px solid #2d3b3c;">
-        <svg viewBox="0 0 400 200" width="100%" height="100%" preserveAspectRatio="none" style="display: block;">
+    return f'''<div style="width: 100%; height: 230px; overflow: hidden; position: relative; background: #152021; border-bottom: 1px solid #283637;">
+        <svg viewBox="0 0 380 230" width="100%" height="100%" preserveAspectRatio="none" style="display: block;">
             <defs>
                 <radialGradient id="grad_card_{taxon_id}" cx="50%" cy="50%" r="65%">
-                    <stop offset="0%" stop-color="#243335" stop-opacity="0.95"/>
-                    <stop offset="100%" stop-color="#141c1d" stop-opacity="1"/>
+                    <stop offset="0%" stop-color="#223133" stop-opacity="0.95"/>
+                    <stop offset="70%" stop-color="#141d1e" stop-opacity="1"/>
+                    <stop offset="100%" stop-color="#0d1415" stop-opacity="1"/>
                 </radialGradient>
                 <pattern id="grid_card_{taxon_id}" width="20" height="20" patternUnits="userSpaceOnUse">
-                    <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#233031" stroke-width="0.5"/>
+                    <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#1f2c2d" stroke-width="0.5"/>
                 </pattern>
             </defs>
-            <rect width="400" height="200" fill="url(#grad_card_{taxon_id})"/>
-            <rect width="400" height="200" fill="url(#grid_card_{taxon_id})"/>
+            <rect width="380" height="230" fill="url(#grad_card_{taxon_id})"/>
+            <rect width="380" height="230" fill="url(#grid_card_{taxon_id})"/>
             
-            <!-- Reticle Crosshair -->
-            <line x1="160" y1="100" x2="240" y2="100" stroke="#2e3e40" stroke-width="1" stroke-dasharray="2 3"/>
-            <line x1="200" y1="60" x2="200" y2="140" stroke="#2e3e40" stroke-width="1" stroke-dasharray="2 3"/>
+            <!-- Viewfinder Optical Reticle -->
+            <circle cx="190" cy="115" r="76" fill="none" stroke="#253536" stroke-width="1.2" stroke-dasharray="3 3"/>
+            <circle cx="190" cy="115" r="72" fill="none" stroke="rgba(206, 247, 158, 0.08)" stroke-width="1"/>
+            <line x1="140" y1="115" x2="240" y2="115" stroke="#2b3b3c" stroke-width="1"/>
+            <line x1="190" y1="65" x2="190" y2="165" stroke="#2b3b3c" stroke-width="1"/>
             
-            <!-- Geometric Abstract Shapes (Material Placeholder: Circle + Triangle) -->
-            <circle cx="180" cy="102" r="44" fill="#ffffff" fill-opacity="0.10" stroke="#ffffff" stroke-opacity="0.16" stroke-width="1.2"/>
-            <polygon points="212,56 256,136 168,136" fill="#ffffff" fill-opacity="0.16" stroke="#ffffff" stroke-opacity="0.22" stroke-width="1.2"/>
-            <circle cx="200" cy="100" r="3.5" fill="{accent}"/>
+            <!-- Viewfinder Brackets (4 corners) -->
+            <path d="M 20 36 L 20 20 L 36 20" fill="none" stroke="#445759" stroke-width="1.5" />
+            <path d="M 360 36 L 360 20 L 344 20" fill="none" stroke="#445759" stroke-width="1.5" />
+            <path d="M 20 194 L 20 210 L 36 210" fill="none" stroke="#445759" stroke-width="1.5" />
+            <path d="M 360 194 L 360 210 L 344 210" fill="none" stroke="#445759" stroke-width="1.5" />
+
+            <!-- Geometric Shapes (Circle + Triangle) -->
+            <circle cx="172" cy="118" r="38" fill="#ffffff" fill-opacity="0.09" stroke="#ffffff" stroke-opacity="0.15" stroke-width="1.2"/>
+            <polygon points="202,74 242,144 162,144" fill="#ffffff" fill-opacity="0.14" stroke="#ffffff" stroke-opacity="0.2" stroke-width="1.2"/>
+            <circle cx="190" cy="115" r="3.5" fill="{accent}"/>
             
-            <!-- Top Status Badge -->
-            <rect x="250" y="14" width="136" height="22" rx="4" fill="#131b1c" fill-opacity="0.9" stroke="#354546" stroke-width="0.8"/>
-            <text x="318" y="29" font-family="'Roboto Mono', monospace" font-size="9" fill="#9db0b0" text-anchor="middle" letter-spacing="0.05em">IMAGE PENDING</text>
+            <!-- Top HUD Badge -->
+            <rect x="238" y="14" width="128" height="22" rx="4" fill="#0f1617" fill-opacity="0.9" stroke="#2d3c3d" stroke-width="0.8"/>
+            <text x="302" y="29" font-family="'Roboto Mono', monospace" font-size="9" fill="#9db0b0" text-anchor="middle" letter-spacing="0.04em">DROP IMAGE HERE</text>
             
             <!-- Bottom Label Strip -->
-            <rect x="0" y="174" width="400" height="26" fill="#101617" fill-opacity="0.85"/>
-            <text x="16" y="191" font-family="'Roboto Mono', monospace" font-size="10" fill="#758888" letter-spacing="0.04em">1000x OIL IMMERSION // {morphology_type.upper().replace('_', ' ')}</text>
-            <text x="384" y="191" font-family="'Roboto Mono', monospace" font-size="10" fill="{accent}" text-anchor="end" letter-spacing="0.04em">{gram_stain.upper()}</text>
+            <rect x="0" y="204" width="380" height="26" fill="#0c1213" fill-opacity="0.9"/>
+            <text x="16" y="221" font-family="'Roboto Mono', monospace" font-size="9.5" fill="#728484" letter-spacing="0.04em">1000x OIL IMMERSION // {morphology_type.upper().replace('_', ' ')}</text>
+            <text x="364" y="221" font-family="'Roboto Mono', monospace" font-size="9.5" fill="{accent}" font-weight="500" text-anchor="end" letter-spacing="0.04em">{gram_stain.upper()}</text>
         </svg>
     </div>'''
 
@@ -1181,17 +1191,86 @@ if st.session_state["view"] == "landing":
     </div>
     """)
 
-    # Absolute Footer
+    # --- MINIMAL LANDING PAGE FOOTER ---
     render_clean_html("""
-    <div style="background-color: var(--color-void); padding: 40px 40px 60px 40px; border-top: 1px solid #151515; max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center;">
-        <div class="mono-tag" style="color: #666666; font-size: 12px;">
-            NECROTRACE // PLATFORM v0.2.0 &bull; FORENSIC METAGENOMICS
-        </div>
-        <div class="mono-tag" style="color: #666666; font-size: 12px;">
-            TEAM BROOMWROOM &bull; TANISH WALTURE &bull; VMEDITHON 3.0 &bull; VIT CHENNAI
+    <div class="necrotrace-footer" style="display: block !important; width: 100%; background-color: #000000; border-top: 1px solid #141417; padding-top: 54px; padding-bottom: 38px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+        <div style="max-width: 1120px; margin: 0 auto; padding: 0 24px; box-sizing: border-box;">
+            
+            <!-- Top Section: Brand & Links on left, Subscription on right -->
+            <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 36px 48px;">
+                
+                <!-- Left: Logo & Navigation Links -->
+                <div style="display: flex; flex-direction: column; gap: 24px; min-width: 260px;">
+                    <!-- Logo mark -->
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="16" cy="16" r="14" stroke="#ffffff" stroke-width="2.2"/>
+                            <path d="M9 16c2.2-3.8 5-3.8 7 0s4.8 3.8 7 0" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round"/>
+                            <path d="M10 11.5c2-2.8 4.2-2.8 6 0s4 2.8 6 0" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" opacity="0.6"/>
+                            <path d="M10 20.5c2-2.8 4.2-2.8 6 0s4 2.8 6 0" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" opacity="0.6"/>
+                        </svg>
+                        <span style="font-size: 22px; font-weight: 700; color: #ffffff; letter-spacing: -0.02em;">necrotrace</span>
+                    </div>
+
+                    <!-- Horizontal Links -->
+                    <div style="display: flex; flex-wrap: wrap; gap: 14px 24px; font-size: 14px; color: #888888;">
+                        <a href="#" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Overview</a>
+                        <a href="#succession" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Features</a>
+                        <a href="#succession" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Methodology</a>
+                        <a href="#dossier" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Dossier</a>
+                        <a href="?view=examination" target="_self" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Examination</a>
+                        <a href="mailto:forensics@necrotrace.org" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Contact</a>
+                    </div>
+                </div>
+
+                <!-- Right: Stay up to date & Subscribe Form -->
+                <div style="display: flex; flex-direction: column; gap: 14px; min-width: 280px;">
+                    <div style="font-size: 15px; font-weight: 600; color: #ffffff;">
+                        Stay up to date
+                    </div>
+                    <form style="display: flex; align-items: center; gap: 10px; margin: 0;" onsubmit="event.preventDefault(); alert('Subscribed to NecroTrace updates.');">
+                        <input type="email" placeholder="Enter your email" style="width: 220px; height: 38px; background-color: #000000; border: 1px solid #27272a; border-radius: 6px; color: #ffffff; padding: 0 14px; font-size: 14px; outline: none; box-sizing: border-box; transition: border-color 0.15s;" onfocus="this.style.borderColor='#52525b'" onblur="this.style.borderColor='#27272a'" />
+                        <button type="submit" style="height: 38px; padding: 0 18px; background-color: #ffffff; color: #000000; font-size: 14px; font-weight: 500; border: none; border-radius: 6px; cursor: pointer; transition: opacity 0.15s; white-space: nowrap;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+                            Subscribe
+                        </button>
+                    </form>
+                </div>
+
+            </div>
+
+            <!-- Subtle Hairline Separator -->
+            <div style="height: 1px; width: 100%; background-color: #171717; margin: 44px 0 26px 0;"></div>
+
+            <!-- Bottom Row: Copyright & Social Icons -->
+            <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; font-size: 14px; color: #71717a;">
+                <div>
+                    &copy; 2026 NecroTrace. All rights reserved.
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 20px;">
+                    <!-- Mail -->
+                    <a href="mailto:forensics@necrotrace.org" title="Mail" style="color: #71717a; display: inline-flex; align-items: center; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#71717a'">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                    </a>
+                    <!-- Twitter / X -->
+                    <a href="https://twitter.com" target="_blank" rel="noreferrer" title="Twitter" style="color: #71717a; display: inline-flex; align-items: center; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#71717a'">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"/></svg>
+                    </a>
+                    <!-- Twitch -->
+                    <a href="https://twitch.tv" target="_blank" rel="noreferrer" title="Twitch" style="color: #71717a; display: inline-flex; align-items: center; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#71717a'">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2H3v16h5v4l4-4h5l4-4V2zm-10 9V7m5 4V7"/></svg>
+                    </a>
+                    <!-- GitHub -->
+                    <a href="https://github.com/BroomWroom/NecroTrace" target="_blank" rel="noreferrer" title="GitHub" style="color: #71717a; display: inline-flex; align-items: center; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#71717a'">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
+                    </a>
+                </div>
+            </div>
+
         </div>
     </div>
-    """)
+    """
+    )
 
 
 # =============================================================================
@@ -1253,16 +1332,32 @@ elif st.session_state["view"] == "examination":
 
     /* Media Card Layout (Matching User Reference Design) */
     .taxa-media-card {
-        border: 1px solid #364040;
-        border-radius: 10px;
-        background: #182223;
+        max-width: 380px;
+        width: 100%;
+        margin-left: auto;
+        margin-right: auto;
+        margin-bottom: 8px;
+        border: 1px solid #334344;
+        border-radius: 12px;
+        background: #141e1f;
         overflow: hidden;
-        margin-bottom: 12px;
-        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
     }
     .taxa-media-card:hover {
-        border-color: #516263;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+        border-color: #4f6364;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+        transform: translateY(-2px);
+    }
+
+    /* Action area styling */
+    div.taxa-dock-wrapper {
+        max-width: 380px;
+        margin: 0 auto 36px auto;
+        padding: 6px 12px;
+        background: rgba(18, 26, 27, 0.65);
+        border: 1px solid #2b393a;
+        border-radius: 8px;
     }
 
     /* Input & Selectbox Styling */
@@ -1669,16 +1764,17 @@ elif st.session_state["view"] == "examination":
                 """
                 render_clean_html(card_html)
                 
-                # Action area: Confirmation checkbox
+                # Action area: Confirmation checkbox inside clean dock with proper separation
+                st.markdown('<div class="taxa-dock-wrapper">', unsafe_allow_html=True)
                 is_checked = st.checkbox(
                     f"Confirm {item['common_name']} ({item['stage']})",
                     value=item["is_recommended"],
                     key=f"exam_taxa_{item['taxon_id']}",
                     help=item.get("biochemical_action", item["role"]),
                 )
+                st.markdown('</div>', unsafe_allow_html=True)
                 if is_checked:
                     selected_taxa_current.append(item["taxon_id"])
-                st.markdown("<div style='margin-bottom: 22px;'></div>", unsafe_allow_html=True)
 
         st.markdown("<div style='margin-top: 8px;'></div>", unsafe_allow_html=True)
 
