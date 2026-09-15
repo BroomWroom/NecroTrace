@@ -24,11 +24,46 @@ from src.triage import (
     FORENSIC_BIOINDICATOR_CATALOG,
     MORPHOLOGICAL_SIGN_GUIDES,
 )
-from src.reporting.pdf_generator import (
-    generate_forensic_pdf,
-    compute_sha256_hash,
-    generate_qr_code_svg,
-)
+import sys
+import importlib
+
+# Dynamic import with hot-reload invalidation for Streamlit Cloud environments
+try:
+    from src.reporting.pdf_generator import (
+        generate_forensic_pdf,
+        compute_sha256_hash,
+        generate_qr_code_svg,
+    )
+except (ImportError, AttributeError):
+    for mod_name in list(sys.modules.keys()):
+        if mod_name.startswith("src.reporting") or mod_name == "src.report":
+            sys.modules.pop(mod_name, None)
+    try:
+        from src.reporting.pdf_generator import (
+            generate_forensic_pdf,
+            compute_sha256_hash,
+            generate_qr_code_svg,
+        )
+    except (ImportError, AttributeError):
+        from src.reporting.pdf_generator import (
+            generate_forensic_pdf,
+            compute_sha256_hash,
+        )
+        def generate_qr_code_svg(payload: str, size: float = 130.0) -> str:
+            """Self-contained fallback SVG QR generator ensuring zero-crash resilience."""
+            from reportlab.graphics.barcode import qr
+            from reportlab.graphics.shapes import Drawing, Rect
+            from reportlab.graphics import renderSVG
+            from reportlab.lib import colors
+            d = Drawing(size, size)
+            d.add(Rect(0, 0, size, size, fillColor=colors.white, strokeColor=None))
+            qr_widget = qr.QrCodeWidget(payload)
+            qr_widget.barLevel = "M"
+            qr_widget.barBorder = 2
+            qr_widget.barWidth = size
+            qr_widget.barHeight = size
+            d.add(qr_widget)
+            return renderSVG.drawToString(d)
 
 # -----------------------------------------------------------------------------
 # 1. PAGE CONFIGURATION
