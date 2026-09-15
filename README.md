@@ -4,8 +4,7 @@
   <img src="assets/logo_transparent.png" alt="NecroTrace Logo" width="380" />
   <br/>
   <h3>Forensic Metagenomics & Machine Learning Platform for Postmortem Interval Estimation</h3>
-  <p><b>Team BroomWroom &bull; Lead Investigator: Tanish Walture &bull; VMedithon 3.0 &bull; VIT Chennai</b></p>
-
+  
   [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-22c55e.svg?style=flat-square&logo=python&logoColor=white)](https://python.org)
   [![Streamlit](https://img.shields.io/badge/Streamlit-1.32%2B-ff4b4b.svg?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io)
   [![XGBoost](https://img.shields.io/badge/XGBoost-Quantile%20ML-16a34a.svg?style=flat-square)](https://xgboost.readthedocs.io)
@@ -202,7 +201,12 @@ NecroTrace was architected to satisfy judicial evidentiary standards for scienti
 
 ---
 
-## Deployment Link : https://necrotrace.streamlit.app/
+## Deployment Link :
+<div align="center">
+  <img src="assets/logo_horizontal.png" alt="NecroTrace Logo" width="380" />
+  <br/> 
+https://necrotrace.streamlit.app/
+</div>
 
 ---
 
