@@ -10,6 +10,7 @@ Developed by Team BroomWroom (Lead: Tanish Walture).
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -41,7 +42,8 @@ st.set_page_config(
 # Handle query parameters for view routing if present
 query_view = st.query_params.get("view", None)
 if "view" not in st.session_state:
-    st.session_state["view"] = query_view if query_view in ["landing", "examination"] else "landing"
+    st.session_state["view"] = query_view if query_view in [
+        "landing", "examination"] else "landing"
 elif query_view in ["landing", "examination"] and query_view != st.session_state["view"]:
     st.session_state["view"] = query_view
 
@@ -63,7 +65,8 @@ def render_clean_html(html_str: str):
     4-space indented code block parser. Strips leading and trailing whitespace
     from each line and removes empty lines that cause CommonMark to break HTML blocks.
     """
-    cleaned_lines = [line.strip() for line in html_str.splitlines() if line.strip()]
+    cleaned_lines = [line.strip()
+                     for line in html_str.splitlines() if line.strip()]
     st.markdown("\n".join(cleaned_lines), unsafe_allow_html=True)
 
 
@@ -335,31 +338,91 @@ GLOBAL_CSS = """
         border: none;
         margin: 60px 0;
     }
-</style>
 
-<script src="https://unpkg.com/lenis@1.3.26/dist/lenis.min.js"></script>
-<script>
-    // Initialize Lenis smooth scroll
-    document.addEventListener("DOMContentLoaded", () => {
-        if (window.Lenis) {
-            const lenis = new Lenis({
-                duration: 1.2,
-                easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-                direction: 'vertical',
-                gestureDirection: 'vertical',
-                smooth: true,
-                mouseMultiplier: 1,
-            });
-            function raf(time) {
-                lenis.raf(time);
-                requestAnimationFrame(raf);
-            }
-            requestAnimationFrame(raf);
-        }
-    });
-</script>
+    /* Bulletproof Smooth Scroll - Overflow is ALWAYS active and smooth */
+    html, body {
+        overflow-x: hidden !important;
+        scroll-behavior: smooth !important;
+    }
+    div[data-testid="stAppViewContainer"],
+    section.main,
+    .main {
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        scroll-behavior: smooth !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+    iframe[title="streamlit.components.v1.html"] {
+        display: none !important;
+        position: absolute !important;
+        height: 0 !important;
+        width: 0 !important;
+        border: none !important;
+    }
+    div[data-testid="stCustomComponentV1"] {
+        display: none !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+</style>
 """
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
+
+# -----------------------------------------------------------------------------
+# ACTIVE SMOOTH SCROLL ENGINE & ANCHOR GLIDE (IFRAME CONTROLLER)
+# -----------------------------------------------------------------------------
+SMOOTH_SCROLL_CONTROLLER_HTML = """
+<script>
+(function() {
+    function init() {
+        try {
+            const parentDoc = window.parent.document;
+            const parentWin = window.parent;
+            if (!parentDoc || !parentWin) return;
+
+            // Ensure scroll container is completely unlocked with smooth scrolling
+            const scrollContainer = parentDoc.querySelector('[data-testid="stAppViewContainer"]') || 
+                                    parentDoc.querySelector('section.main') || 
+                                    parentDoc.documentElement;
+
+            if (scrollContainer) {
+                scrollContainer.style.setProperty('overflow-y', 'auto', 'important');
+                scrollContainer.style.setProperty('scroll-behavior', 'smooth', 'important');
+            }
+
+            // Smooth anchor links navigation via event delegation
+            if (!parentWin.__smooth_scroll_delegated) {
+                parentDoc.addEventListener('click', function(e) {
+                    const anchor = e.target.closest('a[href^="#"]');
+                    if (anchor) {
+                        const hash = anchor.getAttribute('href');
+                        if (hash && hash.length > 1) {
+                            const targetEl = parentDoc.querySelector(hash);
+                            if (targetEl) {
+                                e.preventDefault();
+                                targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }
+                        }
+                    }
+                }, true);
+                parentWin.__smooth_scroll_delegated = true;
+            }
+        } catch(e) {
+            console.error('[NecroTrace] Scroll controller error:', e);
+        }
+    }
+
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        init();
+    } else {
+        window.addEventListener('load', init);
+    }
+})();
+</script>
+"""
+components.html(SMOOTH_SCROLL_CONTROLLER_HTML, height=0)
 
 
 # -----------------------------------------------------------------------------
@@ -388,12 +451,9 @@ if st.session_state["view"] == "landing":
     <div style="padding: 24px 48px; border-bottom: 1px solid var(--color-graphite); display: flex; align-items: center; justify-content: space-between; max-width: 1300px; margin: 0 auto;">
         <div style="display: flex; align-items: center; gap: 16px;">
             <span style="font-family: var(--font-mono); font-size: 14px; letter-spacing: -0.02em; color: var(--color-paper);">
-                NECROTRACE <span style="color: var(--color-graphite);">//</span> LAB-CLOCK
+                NECROTRACE
             </span>
-            <div style="display: flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--color-graphite); border-radius: 9999px;">
-                <span class="signal-dot"></span>
-                <span style="font-family: var(--font-mono); font-size: 11px; color: var(--color-bioluminescent-lime);">SYSTEM VERIFIED</span>
-            </div>
+            
         </div>
         <div style="display: flex; align-items: center; gap: 24px;">
             <a href="#platform" style="font-family: var(--font-mono); font-size: 13px; color: var(--color-graphite); text-decoration: none;">01 PLATFORM</a>
@@ -597,47 +657,59 @@ elif st.session_state["view"] == "examination":
 
     container_exam = st.container()
     with container_exam:
-        st.markdown('<div style="max-width: 1200px; margin: 0 auto; padding: 0 16px;">', unsafe_allow_html=True)
+        st.markdown(
+            '<div style="max-width: 1200px; margin: 0 auto; padding: 0 16px;">', unsafe_allow_html=True)
 
         # -------------------------------------------------------------
         # STEP 1: PATIENT PARTICULARS & SCENE FACTORS
         # -------------------------------------------------------------
-        st.markdown('<div class="section-counter">01 / PATIENT & SCENE PARTICULARS</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="section-counter">01 / PATIENT & SCENE PARTICULARS</div>', unsafe_allow_html=True)
         col_p1, col_p2, col_p3, col_p4 = st.columns(4)
         with col_p1:
-            deceased_name = st.text_input("Name of Deceased / Ref:", value="Unidentified Individual (Ref: Unknown #42)")
-            age_val = st.text_input("Estimated Age:", value="Approx. 35 - 40 Years")
+            deceased_name = st.text_input(
+                "Name of Deceased / Ref:", value="Unidentified Individual (Ref: Unknown #42)")
+            age_val = st.text_input(
+                "Estimated Age:", value="Approx. 35 - 40 Years")
         with col_p2:
-            sex_val = st.selectbox("Sex:", ["Male", "Female", "Indeterminate / Skeletal"], index=0)
+            sex_val = st.selectbox(
+                "Sex:", ["Male", "Female", "Indeterminate / Skeletal"], index=0)
             swab_site = st.selectbox(
                 "Anatomical Swab Site:",
-                ["Oral Cavity / Mucosal Surface", "Nasal Mucosa", "Abdominal Surface", "Soil-Body Interface"],
+                ["Oral Cavity / Mucosal Surface", "Nasal Mucosa",
+                    "Abdominal Surface", "Soil-Body Interface"],
                 index=0,
             )
         with col_p3:
             height_val = st.text_input("Height (approx):", value="172 cm")
             weight_val = st.text_input("Weight (approx):", value="68 kg")
         with col_p4:
-            ambient_temp = st.slider("Scene Temperature (°C):", min_value=5.0, max_value=42.0, value=23.5, step=0.5)
-            humidity_val = st.slider("Relative Humidity (%):", min_value=20.0, max_value=100.0, value=65.0, step=5.0)
+            ambient_temp = st.slider(
+                "Scene Temperature (°C):", min_value=5.0, max_value=42.0, value=23.5, step=0.5)
+            humidity_val = st.slider(
+                "Relative Humidity (%):", min_value=20.0, max_value=100.0, value=65.0, step=5.0)
 
         # Administrative Identifiers
         col_m1, col_m2, col_m3, col_m4 = st.columns(4)
         with col_m1:
-            pm_report_no = st.text_input("Post Mortem Report No:", value="PM-619 / 2026")
+            pm_report_no = st.text_input(
+                "Post Mortem Report No:", value="PM-619 / 2026")
         with col_m2:
-            police_station = st.text_input("Police Station (P.S.):", value="New Township P.S.")
+            police_station = st.text_input(
+                "Police Station (P.S.):", value="New Township P.S.")
         with col_m3:
             inquest_no = st.text_input("Inquest Number:", value="14 / 2026")
         with col_m4:
-            analyst_name = st.text_input("Examining Medical Officer:", value="Dr. Tanish Walture, M.D. (WBMC / 45826)")
+            analyst_name = st.text_input(
+                "Examining Medical Officer:", value="Dr. Tanish Walture, M.D. (WBMC / 45826)")
 
         st.markdown('<hr class="hairline-dark">', unsafe_allow_html=True)
 
         # -------------------------------------------------------------
         # STEP 2: MORPHOLOGICAL SIGNS QUESTIONNAIRE
         # -------------------------------------------------------------
-        st.markdown('<div class="section-counter">02 / MORPHOLOGICAL SIGNS QUESTIONNAIRE</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="section-counter">02 / MORPHOLOGICAL SIGNS QUESTIONNAIRE</div>', unsafe_allow_html=True)
         st.write("Record physical postmortem decomposition signs. The succession engine dynamically aligns these findings with microbial phases.")
 
         col_s1, col_s2, col_s3 = st.columns(3)
@@ -655,7 +727,8 @@ elif st.session_state["view"] == "examination":
                 label_visibility="collapsed",
             )
 
-            st.markdown("<br/>**4. Purge Fluid & Natural Orifices**", unsafe_allow_html=True)
+            st.markdown("<br/>**4. Purge Fluid & Natural Orifices**",
+                        unsafe_allow_html=True)
             purge_opt = st.radio(
                 "Purge Fluid:",
                 [
@@ -683,7 +756,8 @@ elif st.session_state["view"] == "examination":
                 label_visibility="collapsed",
             )
 
-            st.markdown("<br/>**5. Entomology & Maggot Activity**", unsafe_allow_html=True)
+            st.markdown("<br/>**5. Entomology & Maggot Activity**",
+                        unsafe_allow_html=True)
             maggots_opt = st.radio(
                 "Entomology Activity:",
                 [
@@ -727,7 +801,8 @@ elif st.session_state["view"] == "examination":
         # -------------------------------------------------------------
         # STEP 3: AUTO-SUGGESTED MICROBIAL BIOINDICATORS
         # -------------------------------------------------------------
-        st.markdown('<div class="section-counter">03 / AUTO-SUGGESTED MICROBIAL BIOINDICATORS</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="section-counter">03 / AUTO-SUGGESTED MICROBIAL BIOINDICATORS</div>', unsafe_allow_html=True)
 
         render_clean_html(f"""
         <div style="background-color: #1a2425; border-left: 3px solid var(--color-bioluminescent-lime); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 24px;">
@@ -743,7 +818,8 @@ elif st.session_state["view"] == "examination":
         </div>
         """)
 
-        st.write("Review auto-suggested bioindicators. Check/confirm the diagnostic taxa verified by swab testing:")
+        st.write(
+            "Review auto-suggested bioindicators. Check/confirm the diagnostic taxa verified by swab testing:")
 
         suggested_list = triage_eval["suggested_bioindicators"]
         selected_taxa_current = []
@@ -769,7 +845,8 @@ elif st.session_state["view"] == "examination":
         with col_act1:
             if st.button("CONFIRM MICROBIAL PROFILE & CALCULATE PMI", type="primary", use_container_width=True):
                 if not selected_taxa_current:
-                    st.error("Please confirm at least one microbial bioindicator to calculate the postmortem interval.")
+                    st.error(
+                        "Please confirm at least one microbial bioindicator to calculate the postmortem interval.")
                 else:
                     st.session_state["confirmed_taxa"] = selected_taxa_current
                     st.session_state["triage_confirmed"] = True
@@ -815,7 +892,8 @@ elif st.session_state["view"] == "examination":
                         "discolor_obs": discolor_opt,
                         "micro_findings": f"Diagnostic bioindicator confirmation ({len(selected_taxa_current)} verified taxa): {', '.join([t.replace('_', ' ') for t in selected_taxa_current[:4]])} predominant.",
                     }
-                    st.success("Microbial succession profile verified. Quantile PMI estimated.")
+                    st.success(
+                        "Microbial succession profile verified. Quantile PMI estimated.")
 
         with col_act2:
             if st.session_state["triage_confirmed"]:
@@ -840,7 +918,8 @@ elif st.session_state["view"] == "examination":
             dt_latest = now_dt - timedelta(days=p_low)
 
             st.markdown('<hr class="hairline-dark">', unsafe_allow_html=True)
-            st.markdown('<div class="section-counter">04 / TIME-OF-DEATH INFERENCE RESULTS</div>', unsafe_allow_html=True)
+            st.markdown(
+                '<div class="section-counter">04 / TIME-OF-DEATH INFERENCE RESULTS</div>', unsafe_allow_html=True)
 
             kpi1, kpi2, kpi3, kpi4 = st.columns(4)
             with kpi1:
@@ -883,7 +962,8 @@ elif st.session_state["view"] == "examination":
                 line_width=0,
                 annotation_text="Probable Window of Death",
                 annotation_position="top left",
-                annotation_font=dict(color="#cef79e", size=11, family="Roboto Mono"),
+                annotation_font=dict(
+                    color="#cef79e", size=11, family="Roboto Mono"),
             )
             fig_pmi.add_trace(go.Scatter(
                 x=[p_low, p_high],
@@ -908,8 +988,10 @@ elif st.session_state["view"] == "examination":
                     range=[0, max(28.0, p_high * 1.3)],
                     showgrid=True,
                     gridcolor="#2d3c3d",
-                    title_font=dict(color="#c9cbbe", size=12, family="Roboto Mono"),
-                    tickfont=dict(color="#c9cbbe", size=11, family="Roboto Mono"),
+                    title_font=dict(color="#c9cbbe", size=12,
+                                    family="Roboto Mono"),
+                    tickfont=dict(color="#c9cbbe", size=11,
+                                  family="Roboto Mono"),
                 ),
                 yaxis=dict(showticklabels=False, range=[-0.5, 0.5]),
                 height=180,
@@ -924,7 +1006,8 @@ elif st.session_state["view"] == "examination":
             # STEP 5: OFFICIAL POST-MORTEM REPORT & PDF EXPORT
             # ---------------------------------------------------------
             st.markdown('<hr class="hairline-dark">', unsafe_allow_html=True)
-            st.markdown('<div class="section-counter">05 / OFFICIAL CASE REPORT DOSSIER</div>', unsafe_allow_html=True)
+            st.markdown(
+                '<div class="section-counter">05 / OFFICIAL CASE REPORT DOSSIER</div>', unsafe_allow_html=True)
 
             case_info = st.session_state["case_particulars"]
 
