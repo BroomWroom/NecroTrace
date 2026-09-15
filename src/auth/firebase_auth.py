@@ -11,6 +11,7 @@ import urllib.request
 import urllib.error
 import hashlib
 import time
+import secrets
 from typing import Dict, Any, Tuple, Optional
 
 # Retained empty for backwards-compatibility; sandbox demo accounts removed
@@ -763,26 +764,139 @@ def register_officer(
         }
 
 
-def generate_release_passcode(case_id: str) -> str:
+_ACTIVE_CASE_PASSCODES: Dict[str, Any] = {}
+
+
+def save_case_passcode_to_firestore(case_id: str, passcode: str) -> bool:
+    """Save the active 6-digit release passcode for a case to Cloud Firestore."""
+    cfg = get_firebase_config()
+    api_key = cfg.get("api_key", "")
+    project_id = cfg.get("project_id", "")
+    if not api_key or not project_id:
+        return False
+
+    clean_case = str(case_id).strip().upper().replace("/", "").replace("-", "")
+    if not clean_case:
+        return False
+
+    fs_url = f"https://firestore.googleapis.com/v1/projects/{project_id}/databases/(default)/documents/case_passcodes/{clean_case}?key={api_key}"
+    doc_fields = build_firestore_fields({
+        "case_id": clean_case,
+        "passcode": str(passcode).strip().upper(),
+        "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    })
+    try:
+        req = urllib.request.Request(
+            fs_url,
+            data=json.dumps({"fields": doc_fields}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="PATCH",
+        )
+        with urllib.request.urlopen(req, timeout=5):
+            return True
+    except Exception:
+        return False
+
+
+def fetch_case_passcode_from_firestore(case_id: str) -> Optional[str]:
+    """Retrieve the active 6-digit release passcode for a case from Cloud Firestore."""
+    cfg = get_firebase_config()
+    api_key = cfg.get("api_key", "")
+    project_id = cfg.get("project_id", "")
+    if not api_key or not project_id:
+        return None
+
+    clean_case = str(case_id).strip().upper().replace("/", "").replace("-", "")
+    if not clean_case:
+        return None
+
+    fs_url = f"https://firestore.googleapis.com/v1/projects/{project_id}/databases/(default)/documents/case_passcodes/{clean_case}?key={api_key}"
+    try:
+        req = urllib.request.Request(fs_url, headers={"Content-Type": "application/json"}, method="GET")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            doc = json.loads(resp.read().decode("utf-8"))
+            parsed = parse_firestore_doc(doc)
+            return parsed.get("passcode")
+    except Exception:
+        return None
+
+
+def generate_release_passcode(case_id: str, seed: str = "", force_new: bool = False, sync_firestore: bool = True) -> str:
     """
-    Generate a human-readable 6-digit release passcode (e.g. NC-8492)
-    deterministically linking the mobile verification session to the desktop terminal.
-    Valid for the day's case verification.
+    Generate a dynamic, human-readable 6-digit release passcode (e.g. NC-849201)
+    that is unique each time an examination session or mobile verification is conducted.
     """
     clean_case = str(case_id).strip().upper().replace("/", "").replace("-", "")
-    day_bucket = time.strftime("%Y%m%d")
-    salt = "NECRO_FORENSIC_RELEASE_V1"
-    digest = hashlib.sha256(f"{clean_case}|{day_bucket}|{salt}".encode("utf-8")).hexdigest()
-    num_part = str(int(digest[:6], 16))[-4:].zfill(4)
-    return f"NC-{num_part}"
+    if not clean_case:
+        clean_case = "CASEDEFAULT"
+
+    # If an existing code was generated for this case in memory and not forcing new:
+    if not force_new and not seed and clean_case in _ACTIVE_CASE_PASSCODES:
+        return _ACTIVE_CASE_PASSCODES[clean_case]
+
+    # Compute a 6-digit numerical portion (100000 to 999999)
+    if seed:
+        salt = "NECRO_PASS_V2"
+        digest = hashlib.sha256(f"{clean_case}|{seed}|{salt}".encode("utf-8")).hexdigest()
+        six_digit = 100000 + (int(digest[:8], 16) % 900000)
+    else:
+        six_digit = secrets.randbelow(900000) + 100000
+
+    passcode = f"NC-{six_digit}"
+    _ACTIVE_CASE_PASSCODES[clean_case] = passcode
+
+    # Persist into Cloud Firestore so mobile & desktop can sync dynamically
+    if sync_firestore:
+        try:
+            save_case_passcode_to_firestore(clean_case, passcode)
+        except Exception:
+            pass
+
+    return passcode
 
 
-def verify_release_passcode(case_id: str, entered_code: str) -> bool:
-    """Validate whether an entered passcode matches the expected case release passcode."""
-    expected = generate_release_passcode(case_id)
+def verify_release_passcode(case_id: str, entered_code: str, seed: str = "") -> bool:
+    """
+    Validate whether an entered passcode matches the expected dynamic case release passcode.
+    Accepts full format (NC-849201) or bare 6-digit code (849201).
+    Checks against:
+      1) Seed-derived code (QR session link)
+      2) Server in-memory active cache
+      3) Cloud Firestore case_passcodes record
+      4) Rotating time-window OTP (3-minute rolling tolerance)
+    """
+    if not entered_code:
+        return False
+
+    clean_case = str(case_id).strip().upper().replace("/", "").replace("-", "")
     norm_entered = str(entered_code).strip().upper().replace(" ", "")
-    if norm_entered == expected:
+
+    def is_match(candidate: Optional[str]) -> bool:
+        if not candidate:
+            return False
+        clean_cand = str(candidate).strip().upper().replace(" ", "")
+        return norm_entered in (clean_cand, clean_cand.replace("NC-", ""))
+
+    # 1. Check against provided seed (direct mathematical match from QR parameter)
+    if seed:
+        seed_expected = generate_release_passcode(clean_case, seed=seed, sync_firestore=False)
+        if is_match(seed_expected):
+            return True
+
+    # 2. Check against server in-memory active cache
+    if is_match(_ACTIVE_CASE_PASSCODES.get(clean_case)):
         return True
-    if norm_entered == expected.replace("NC-", ""):
+
+    # 3. Check against Cloud Firestore record
+    fs_code = fetch_case_passcode_from_firestore(clean_case)
+    if is_match(fs_code):
         return True
+
+    # 4. Check rotating time-window OTP fallback (current, previous, next 3-minute window)
+    now_bucket = int(time.time() // 180)
+    for b in [now_bucket, now_bucket - 1, now_bucket + 1]:
+        w_code = generate_release_passcode(clean_case, seed=f"TOTP_{b}", sync_firestore=False)
+        if is_match(w_code):
+            return True
+
     return False

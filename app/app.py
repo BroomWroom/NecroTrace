@@ -9,6 +9,7 @@ Developed by Team BroomWroom (Lead: Tanish Walture).
 
 from datetime import datetime, timezone, timedelta
 import time
+import secrets
 from pathlib import Path
 import streamlit as st
 import streamlit.components.v1 as components
@@ -2402,7 +2403,14 @@ elif st.session_state["view"] == "examination":
             evidence_hash = compute_sha256_hash(evidence_raw)
             clean_pm = pm_no.replace(" ", "").replace("/", "-")
             clean_inq = inquest_no.replace(" ", "").replace("/", "-")
-            qr_url = f"https://necrotrace.streamlit.app/?view=verify&case={clean_pm}&inq={clean_inq}&pmi={p_est:.1f}d&hash={evidence_hash[:16]}"
+
+            if "case_passcode_seeds" not in st.session_state:
+                st.session_state["case_passcode_seeds"] = {}
+            if clean_pm not in st.session_state["case_passcode_seeds"]:
+                st.session_state["case_passcode_seeds"][clean_pm] = secrets.token_hex(4)
+            case_seed = st.session_state["case_passcode_seeds"][clean_pm]
+
+            qr_url = f"https://necrotrace.streamlit.app/?view=verify&case={clean_pm}&inq={clean_inq}&pmi={p_est:.1f}d&hash={evidence_hash[:16]}&seed={case_seed}"
 
             qr_svg_str = generate_qr_code_svg(qr_url, size=130.0)
             qr_b64 = base64.b64encode(
@@ -2487,7 +2495,7 @@ elif st.session_state["view"] == "examination":
             )
 
             if not is_report_unlocked:
-                expected_passcode = generate_release_passcode(clean_pm)
+                expected_passcode = generate_release_passcode(clean_pm, seed=case_seed)
 
                 render_clean_html(f"""
                 <div style="background: #172324; border: 1.5px solid #f59e0b; border-radius: 12px; padding: 22px; margin-top: 14px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
@@ -2503,7 +2511,7 @@ elif st.session_state["view"] == "examination":
                             DOWNLOAD LOCKED
                         </span>
                     </div>
-                    <div style="font-size: 13px; color: #cbd5e1; line-height: 1.55; margin-bottom: 16px;">
+                    <div style="font-size: 13px; color: #cbd5e1; line-line: 1.55; margin-bottom: 16px;">
                         Official post-mortem records (Form PM-5372) contain sensitive medico-legal inquest findings. 
                         In accordance with evidentiary chain-of-custody protocols, an authorized medical examiner or investigating officer must <b>authenticate via the QR code portal</b> using their registered Firebase credentials before the certified dossier can be released.
                     </div>
@@ -2524,20 +2532,26 @@ elif st.session_state["view"] == "examination":
                         '<div class="mono-tag" style="margin-bottom: 6px;">METHOD 1: ENTER 6-DIGIT RELEASE PASSCODE</div>', unsafe_allow_html=True)
                     pass_in = st.text_input(
                         "Enter Release Passcode",
-                        placeholder="e.g. NC-3162 (shown on mobile verification screen)",
+                        placeholder="e.g. 849201 or NC-849201 (shown on mobile screen)",
                         key=f"passcode_input_{clean_pm}",
                         label_visibility="collapsed"
                     )
-                    if st.button("VERIFY PASSCODE & RELEASE REPORT", use_container_width=True, key=f"btn_unlock_{clean_pm}"):
-                        if verify_release_passcode(clean_pm, pass_in):
-                            st.session_state["unlocked_reports"].add(pm_no)
-                            st.session_state["unlocked_reports"].add(clean_pm)
-                            st.success(
-                                "Workstation Release Code Accepted. Official PDF Dossier released.")
+                    btn_v_col1, btn_v_col2 = st.columns([1.6, 1.0])
+                    with btn_v_col1:
+                        if st.button("VERIFY PASSCODE & RELEASE REPORT", use_container_width=True, key=f"btn_unlock_{clean_pm}"):
+                            if verify_release_passcode(clean_pm, pass_in, seed=case_seed):
+                                st.session_state["unlocked_reports"].add(pm_no)
+                                st.session_state["unlocked_reports"].add(clean_pm)
+                                st.success(
+                                    "Workstation Release Code Accepted. Official PDF Dossier released.")
+                                st.rerun()
+                            else:
+                                st.error(
+                                    "Invalid release passcode. Please authenticate via the QR code on your mobile device first.")
+                    with btn_v_col2:
+                        if st.button("↻ REFRESH CODE", use_container_width=True, key=f"btn_refresh_{clean_pm}"):
+                            st.session_state["case_passcode_seeds"][clean_pm] = secrets.token_hex(4)
                             st.rerun()
-                        else:
-                            st.error(
-                                "Invalid release passcode. Please authenticate via the QR code on your mobile device first.")
 
                 with lock_col2:
                     st.markdown(
@@ -2661,7 +2675,8 @@ elif st.session_state["view"] == "verify":
         or case_param in st.session_state.get("unlocked_reports", set())
         or clean_case_id in st.session_state.get("unlocked_reports", set())
     )
-    release_code = generate_release_passcode(clean_case_id)
+    seed_param = st.query_params.get("seed", "")
+    release_code = generate_release_passcode(clean_case_id, seed=seed_param)
 
     # -------------------------------------------------------------------------
     # FIREBASE OFFICER AUTHENTICATION GATEWAY
@@ -2816,7 +2831,7 @@ elif st.session_state["view"] == "verify":
             <div style="background: #0d1516; border: 1.5px dashed var(--color-bioluminescent-lime); border-radius: 10px; padding: 18px; text-align: center; margin-bottom: 18px;">
                 <div class="mono-tag" style="color: var(--color-bioluminescent-lime); font-size: 11px; letter-spacing: 0.08em;">MORTUARY WORKSTATION RELEASE PASSCODE</div>
                 <div style="font-size: 34px; font-weight: 700; font-family: var(--font-mono); color: #ffffff; letter-spacing: 0.14em; margin: 8px 0;">{release_code}</div>
-                <div style="font-size: 12px; color: #94a3b8;">Enter this 6-digit passcode on the mortuary terminal to unlock local workstation downloading and physical printing.</div>
+                <div style="font-size: 12px; color: #94a3b8;">Enter this 6-digit passcode (<code>{release_code}</code> or <code>{release_code.replace('NC-', '')}</code>) on the mortuary terminal to unlock local workstation downloading and physical printing.</div>
             </div>
         </div>
         """)
