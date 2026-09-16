@@ -94,7 +94,30 @@ Forensic determination of the time elapsed since death (Postmortem Interval, **P
 - **Digital Chain-of-Custody Verification:** Mobile-scannable QR code verification allowing authorized officers to validate tamper-evident SHA-256 checksums, view case particulars, inspect microbial bioindicator evidence, and generate synchronized 6-digit mortuary workstation release codes (`NC-XXXXXX`).
 
 ### View 4: Legal & Policy Compliance Suite
-- **Dedicated Compliance Pages:** Includes accessible, high-contrast, centered policy documentation for Privacy Policy (`?view=privacy`), Terms of Service (`?view=terms`), Cookie Consent Policy (`?view=cookies`), Refund/Cancellation Terms (`?view=refund`), and a custom 404 Error handler.
+- **Dedicated Compliance Pages:** Includes accessible, high-contrast, centered policy documentation for Privacy Policy (`?view=privacy`), Terms of Service (`?view=terms`), Cookie & Third-Party Disclosure Policy (`?view=cookies`), and a custom Medico-Legal 404 Route Diagnostics terminal (`?view=404`).
+
+---
+
+## Dependencies & Core Libraries
+
+NecroTrace is built on a specialized bioinformatic, machine learning, and forensic document generation stack:
+
+| Category | Library | Minimum Version | Architectural Role in NecroTrace |
+|:---|:---|:---|:---|
+| **Machine Learning & Modeling** | `xgboost` | `>=2.0.0` | Multi-quantile gradient boosting (`reg:quantileerror`) for $p_{10}$, $p_{50}$, and $p_{90}$ non-parametric interval estimation |
+| **Model Explainability (XAI)** | `shap` | `>=0.44.0` | `TreeExplainer` computing additive Shapley values ($\phi_i$) for non-black-box microbial bioindicator attribution |
+| **Scientific & Bioinformatics** | `numpy` | `>=1.24.0` | High-performance vector operations, Centered Log-Ratio (CLR) offsets, and monotonic bound enforcement |
+| **Scientific & Bioinformatics** | `pandas` | `>=2.0.0` | Abundance matrices, case particulars, specimen metadata indexing, and feature schema alignment |
+| **Scientific & Bioinformatics** | `scipy` | `>=1.10.0` | Statistical distributions, microbial variance modeling, and bioinformatic dispersion calculations |
+| **Scientific & Bioinformatics** | `scikit-learn` | `>=1.3.0` | Reproducible train/test splitting, baseline regressor benchmarking, and model evaluation metrics (MAE, RMSE, coverage) |
+| **Pipeline Serialization** | `joblib` | `>=1.3.0` | Fast serialization and disk loading of pre-trained quantile regressors and feature schemas |
+| **Interactive Web Application** | `streamlit` | `>=1.32.0` | Reactive application framework, session state management, form inputs, and view routing |
+| **Dynamic Visualizations** | `plotly` | `>=5.18.0` | Interactive bioindicator abundance gauges and dynamic postmortem interval timeline fan charts |
+| **Static & Forensic Plotting** | `matplotlib` | `>=3.7.0` | Headless rendering (`Agg` backend) of dark-themed in-app SHAP plots and publication-grade PDF graphics |
+| **Forensic PDF Synthesis** | `reportlab` | `>=4.1.0` | Programmatic compilation of official Form PM-5372 autopsy dossiers, Platypus flowables, and native QR code generation |
+| **Vector Graphic Rendering** | `kaleido` | `>=0.2.1` | Headless static image engine converting Plotly vector figures for report embedding |
+| **Image Processing** | `Pillow` (PIL) | `>=10.0.0` | Photographic asset manipulation, optical reticle compositing, and Base64 badge encoding |
+| **Cryptographic & Network Utilities** | `hashlib`, `secrets`, `urllib` | Standard Library | SHA-256 evidence hashing, tamper-proof seed token generation, and zero-dependency Firebase REST gateway |
 
 ---
 
