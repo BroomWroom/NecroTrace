@@ -138,7 +138,7 @@ if not st.session_state.get("authenticated_officer"):
 if st.session_state.get("authenticated_officer"):
     set_active_officer_session(st.session_state["authenticated_officer"])
 
-VALID_VIEWS = ["landing", "examination", "verify"]
+VALID_VIEWS = ["landing", "examination", "verify", "privacy", "terms", "cookies"]
 if "view" not in st.session_state:
     st.session_state["view"] = query_view if query_view in VALID_VIEWS else "landing"
 elif query_view in VALID_VIEWS and query_view != st.session_state["view"]:
@@ -222,13 +222,37 @@ GLOBAL_CSS = """
         --color-abyssal-ink: #222f30;
         --color-bone-white: #f7f7f5;
         --color-paper: #ffffff;
-        --color-graphite: #4d5757;
+        --color-graphite: #94a3a3;
         --color-lichen: #c9cbbe;
         --color-tissue: #e7e8e1;
         --color-frost: #eeeeee;
         --color-void: #000000;
         --font-display: 'Inter Tight', 'Aspekta', -apple-system, sans-serif;
         --font-mono: 'Roboto Mono', monospace;
+    }
+
+    /* Accessibility Focus Indicators & Skip Link */
+    a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+        outline: 2px solid #cef79e !important;
+        outline-offset: 2px !important;
+    }
+    .skip-link {
+        position: absolute;
+        top: -60px;
+        left: 14px;
+        background: #cef79e;
+        color: #000000 !important;
+        padding: 8px 16px;
+        z-index: 9999999;
+        font-family: var(--font-mono);
+        font-size: 12px;
+        font-weight: 700;
+        text-decoration: none;
+        border-radius: 4px;
+        transition: top 0.15s ease;
+    }
+    .skip-link:focus {
+        top: 14px;
     }
 
     /* Streamlit overrides - Full bleed support across all versions */
@@ -1026,7 +1050,13 @@ if not st.session_state.get("authenticated_officer") and st.session_state.get("v
                 reg_pass_conf = st.text_input(
                     "Confirm Passcode", type="password", key="gate_reg_pass_conf")
 
-            if st.button("ENROLL EXAMINER", use_container_width=True, key="btn_gate_enroll"):
+            reg_consent = st.checkbox(
+                "I consent to my name, email, badge number, and station being stored securely in Firebase (Google Cloud) for authentication purposes. I have read the [Privacy Policy](?view=privacy).",
+                value=False,
+                key="gate_reg_consent"
+            )
+
+            if st.button("ENROLL EXAMINER", use_container_width=True, key="btn_gate_enroll", disabled=not reg_consent):
                 if not reg_email or not reg_pass or not reg_name:
                     st.warning("Please provide Name, Email, and Passcode.")
                 elif len(reg_pass) < 6:
@@ -1062,7 +1092,7 @@ if not st.session_state.get("authenticated_officer") and st.session_state.get("v
 
         st.markdown("""
         <div style="text-align: center; margin-top: 24px; padding-top: 14px; border-top: 1px solid rgba(77, 87, 87, 0.25); font-family: var(--font-mono); font-size: 10px; color: var(--color-graphite); letter-spacing: 0.05em;">
-            ISO/IEC 17025 ACCREDITED FORENSIC SERVICE &bull; 21 CFR PART 11 DIGITAL SIGNATURES &bull; ENCRYPTED METAGENOMIC PIPELINE
+            ACADEMIC RESEARCH PROTOTYPE &bull; OPEN-SOURCE FORENSIC METAGENOMICS &bull; MIT LICENSE
         </div>
         """, unsafe_allow_html=True)
 
@@ -1116,6 +1146,7 @@ if st.session_state["view"] == "landing":
     """
 
     hero_markup = f"""
+    <a href="#succession" class="skip-link">Skip to main content</a>
     <div id="kinetic-hero-container" style="position: relative; width: 100%; min-height: 100vh; overflow: hidden; background-color: var(--color-abyssal-ink); cursor: crosshair; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
         <canvas id="kinetic-grid-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none;"></canvas>
         
@@ -1480,7 +1511,7 @@ if st.session_state["view"] == "landing":
                     Form PM-5372 Integration
                 </div>
                 <div style="font-size: 16px; line-height: 1.35; color: var(--color-graphite);">
-                    Direct generation of courtroom-grade autopsy documentation. Complies with legal evidentiary standards (Daubert / Frye) through explicit error bounds, specimen adequacy clearance, and institutional certification.
+                    Direct generation of forensic autopsy documentation. Designed with awareness of evidentiary standards (Daubert / Frye) through explicit error bounds, specimen adequacy clearance, and institutional certification.
                 </div>
             </div>
         </div>
@@ -1558,7 +1589,7 @@ if st.session_state["view"] == "landing":
                     Ready for clinical post-mortem examination.
                 </h2>
                 <p style="font-size: 18px; color: var(--color-graphite); margin: 0 0 36px 0; max-width: 680px; line-height: 1.4;">
-                    Proceed to the interactive triage workflow to input autopsy particulars, correlate morphological findings, confirm microbial bioindicators, and export the official Form PM-5372 dossier.
+                    Proceed to the interactive triage workflow to input autopsy particulars, correlate morphological findings, confirm microbial bioindicators, and export the Form PM-5372 dossier.
                 </p>
                 <a href="?view=examination{auth_q}" target="_self" class="sober-btn-dark">COMMENCE POST-MORTEM EXAMINATION</a>
             </div>
@@ -1571,7 +1602,7 @@ if st.session_state["view"] == "landing":
     <div class="necrotrace-footer" style="display: block !important; width: 100%; background-color: #000000; border-top: 1px solid #141417; padding-top: 54px; padding-bottom: 38px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
         <div style="max-width: 1120px; margin: 0 auto; padding: 0 24px; box-sizing: border-box;">
             
-            <!-- Top Section: Brand & Links on left, Subscription on right -->
+            <!-- Top Section: Brand & Links on left, Legal on right -->
             <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 36px 48px;">
                 
                 <!-- Left: Logo & Navigation Links -->
@@ -1589,49 +1620,59 @@ if st.session_state["view"] == "landing":
                         <a href="#succession" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Methodology</a>
                         <a href="#dossier" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Dossier</a>
                         <a href="?view=examination{auth_q}" target="_self" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Examination</a>
-                        <a href="mailto:forensics@necrotrace.org" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Contact</a>
+                        <a href="mailto:tanishwalture@gmail.com" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Contact</a>
                     </div>
                 </div>
 
-                <!-- Right: Stay up to date & Subscribe Form -->
+                <!-- Right: Legal Links & Project Info -->
                 <div style="display: flex; flex-direction: column; gap: 14px; min-width: 280px;">
                     <div style="font-size: 15px; font-weight: 600; color: #ffffff;">
-                        Stay up to date
+                        Legal &amp; Policies
                     </div>
-                    <form style="display: flex; align-items: center; gap: 10px; margin: 0;" onsubmit="event.preventDefault(); alert('Subscribed to NecroTrace updates.');">
-                        <input type="email" placeholder="Enter your email" style="width: 220px; height: 38px; background-color: #000000; border: 1px solid #27272a; border-radius: 6px; color: #ffffff; padding: 0 14px; font-size: 14px; outline: none; box-sizing: border-box; transition: border-color 0.15s;" onfocus="this.style.borderColor='#52525b'" onblur="this.style.borderColor='#27272a'" />
-                        <button type="submit" style="height: 38px; padding: 0 18px; background-color: #ffffff; color: #000000; font-size: 14px; font-weight: 500; border: none; border-radius: 6px; cursor: pointer; transition: opacity 0.15s; white-space: nowrap;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
-                            Subscribe
-                        </button>
-                    </form>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px 20px; font-size: 13px;">
+                        <a href="?view=privacy" target="_self" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Privacy Policy</a>
+                        <a href="?view=terms" target="_self" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Terms &amp; Conditions</a>
+                        <a href="?view=cookies" target="_self" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Cookie &amp; Third-Party Policy</a>
+                    </div>
+                    <div style="font-size: 12px; color: #52525b; line-height: 1.45; margin-top: 4px;">
+                        Developed by Tanish Walture (Team BroomWroom)<br/>
+                        Contact: <a href="mailto:tanishwalture@gmail.com" style="color: #71717a; text-decoration: none;">tanishwalture@gmail.com</a>
+                    </div>
                 </div>
 
             </div>
 
+            <!-- Academic Disclaimer -->
+            <div style="margin-top: 32px; padding: 14px 18px; background: rgba(245, 158, 11, 0.06); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 8px;">
+                <div style="font-size: 11.5px; color: #a1a1aa; line-height: 1.5;">
+                    <span style="color: #f59e0b; font-weight: 600;">&#9888; ACADEMIC RESEARCH PROTOTYPE</span> &mdash; NecroTrace is an educational demonstration project. It is NOT certified, validated, or approved for use in actual forensic investigations, criminal cases, or legal proceedings. All generated reports are for research and demonstration purposes only.
+                </div>
+            </div>
+
             <!-- Subtle Hairline Separator -->
-            <div style="height: 1px; width: 100%; background-color: #171717; margin: 44px 0 26px 0;"></div>
+            <div style="height: 1px; width: 100%; background-color: #171717; margin: 28px 0 20px 0;"></div>
 
             <!-- Bottom Row: Copyright & Social Icons -->
             <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; font-size: 14px; color: #71717a;">
                 <div>
-                    &copy; 2026 NecroTrace. All rights reserved.
+                    &copy; 2026 NecroTrace. All rights reserved. &bull; <a href="https://github.com/BroomWroom/NecroTrace/blob/main/LICENSE" target="_blank" rel="noreferrer" style="color: #71717a; text-decoration: none;">MIT License</a>
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 20px;">
                     <!-- Mail -->
-                    <a href="mailto:forensics@necrotrace.org" title="Mail" style="color: #71717a; display: inline-flex; align-items: center; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#71717a'">
+                    <a href="mailto:tanishwalture@gmail.com" title="Email" style="color: #71717a; display: inline-flex; align-items: center; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#71717a'">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
                     </a>
-                    <!-- Twitter / X -->
-                    <a href="https://twitter.com" target="_blank" rel="noreferrer" title="Twitter" style="color: #71717a; display: inline-flex; align-items: center; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#71717a'">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"/></svg>
+                    <!-- Instagram -->
+                    <a href="https://instagram.com/tnsh_Zzz" target="_blank" rel="noreferrer" title="Instagram" style="color: #71717a; display: inline-flex; align-items: center; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#71717a'">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
                     </a>
-                    <!-- Twitch -->
-                    <a href="https://twitch.tv" target="_blank" rel="noreferrer" title="Twitch" style="color: #71717a; display: inline-flex; align-items: center; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#71717a'">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2H3v16h5v4l4-4h5l4-4V2zm-10 9V7m5 4V7"/></svg>
+                    <!-- LinkedIn -->
+                    <a href="https://www.linkedin.com/in/tanish-walture-20a79130a/" target="_blank" rel="noreferrer" title="LinkedIn" style="color: #71717a; display: inline-flex; align-items: center; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#71717a'">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>
                     </a>
                     <!-- GitHub -->
-                    <a href="https://github.com/BroomWroom/NecroTrace" target="_blank" rel="noreferrer" title="GitHub" style="color: #71717a; display: inline-flex; align-items: center; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#71717a'">
+                    <a href="https://github.com/BroomWroom" target="_blank" rel="noreferrer" title="GitHub" style="color: #71717a; display: inline-flex; align-items: center; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#71717a'">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
                     </a>
                 </div>
@@ -1792,6 +1833,7 @@ elif st.session_state["view"] == "examination":
     officer_name_short = cur_officer.get("name", "Examiner")
     officer_badge_short = cur_officer.get("badge", "CFS")
     nav_exam_html = f"""
+    <a href="#examination-form" class="skip-link">Skip to autopsy form</a>
     <header style="width: 100%; border-bottom: 1px solid var(--color-graphite); padding: 12px 0 20px 0; margin-bottom: 28px;">
         <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
             <div style="display: flex; align-items: center; gap: 12px;">
@@ -1817,12 +1859,12 @@ elif st.session_state["view"] == "examination":
 
     # Title & Subtitle (Centered container)
     render_clean_html("""
-    <div style="margin-bottom: 30px;">
+    <div id="examination-form" style="margin-bottom: 30px;">
         <h1 style="font-size: clamp(26px, 3.0vw, 36px); line-height: 1.15; letter-spacing: -0.02em; color: var(--color-paper); margin: 0 0 10px 0;">
             Medical Examiner Diagnostic Triage
         </h1>
         <p style="font-size: 15px; color: var(--color-graphite); margin: 0; line-height: 1.45;">
-            Autopsy particulars and morphological postmortem findings correlate directly with microbial ecological succession kinetics, synthesizing a compositional profile to predict quantile postmortem intervals with court-admissible error bounds.
+            Autopsy particulars and morphological postmortem findings correlate directly with microbial ecological succession kinetics, synthesizing a compositional profile to predict quantile postmortem intervals with probabilistic error bounds.
         </p>
     </div>
     """)
@@ -2387,7 +2429,7 @@ elif st.session_state["view"] == "examination":
             st.markdown(
                 '<hr class="hairline-dark" style="margin: 32px 0;">', unsafe_allow_html=True)
             st.markdown(
-                '<div class="section-counter" style="margin-bottom: 20px;">05 / OFFICIAL CASE REPORT DOSSIER</div>', unsafe_allow_html=True)
+                '<div class="section-counter" style="margin-bottom: 20px;">05 / CASE REPORT DOSSIER</div>', unsafe_allow_html=True)
 
             case_info = st.session_state["case_particulars"]
             pm_no = case_info.get("pm_report_no", "PM-619 / 2026")
@@ -2479,7 +2521,7 @@ elif st.session_state["view"] == "examination":
                 "dropped_taxa": 0,
             }
 
-            with st.spinner("Compiling official Post-Mortem Report PDF (Form PM-5372)..."):
+            with st.spinner("Compiling Post-Mortem Report PDF (Form PM-5372)..."):
                 pdf_bytes = generate_forensic_pdf(
                     case_metadata=case_info,
                     pmi_findings=pmi,
@@ -2503,8 +2545,8 @@ elif st.session_state["view"] == "examination":
                         <div style="display: flex; align-items: center; gap: 12px;">
                             <div class="mono-tag" style="color: #f59e0b; font-size: 11px; font-weight: 700; border: 1px solid #f59e0b; padding: 2px 8px; border-radius: 4px;">SEC-LOCK</div>
                             <div>
-                                <div class="mono-tag" style="color: #f59e0b; font-size: 10px;">CHAIN-OF-CUSTODY ENCRYPTION LOCK &bull; ISO 17025 COMPLIANT</div>
-                                <div style="font-size: 17px; font-weight: 600; color: #ffffff;">AUTHENTICATION REQUIRED TO DOWNLOAD OFFICIAL REPORT</div>
+                                <div class="mono-tag" style="color: #f59e0b; font-size: 10px;">CHAIN-OF-CUSTODY VERIFICATION PROTOCOL</div>
+                                <div style="font-size: 17px; font-weight: 600; color: #ffffff;">AUTHENTICATION REQUIRED TO DOWNLOAD REPORT</div>
                             </div>
                         </div>
                         <span style="font-family: var(--font-mono); font-size: 11px; background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid #f59e0b; padding: 4px 12px; border-radius: 9999px;">
@@ -2512,8 +2554,11 @@ elif st.session_state["view"] == "examination":
                         </span>
                     </div>
                     <div style="font-size: 13px; color: #cbd5e1; line-line: 1.55; margin-bottom: 16px;">
-                        Official post-mortem records (Form PM-5372) contain sensitive medico-legal inquest findings. 
-                        In accordance with evidentiary chain-of-custody protocols, an authorized medical examiner or investigating officer must <b>authenticate via the QR code portal</b> using their registered Firebase credentials before the certified dossier can be released.
+                        Post-mortem records (Form PM-5372) contain sensitive medico-legal inquest findings. 
+                        In accordance with chain-of-custody protocols, an authorized medical examiner or investigating officer must <b>authenticate via the QR code portal</b> using their registered Firebase credentials before the dossier can be released.
+                    </div>
+                    <div style="font-size: 11px; color: #94a3b8; line-height: 1.4; margin-bottom: 12px; font-style: italic;">
+                        &#9888; This report is generated for educational and research demonstration purposes only. It does not constitute an official medico-legal document.
                     </div>
                     <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
                         <a href="{qr_url}" target="_blank" style="text-decoration: none;">
@@ -2543,7 +2588,7 @@ elif st.session_state["view"] == "examination":
                                 st.session_state["unlocked_reports"].add(pm_no)
                                 st.session_state["unlocked_reports"].add(clean_pm)
                                 st.success(
-                                    "Workstation Release Code Accepted. Official PDF Dossier released.")
+                                    "Workstation Release Code Accepted. PDF Dossier released.")
                                 st.rerun()
                             else:
                                 st.error(
@@ -2597,7 +2642,7 @@ elif st.session_state["view"] == "examination":
                 """)
 
                 st.download_button(
-                    label="DOWNLOAD OFFICIAL POST-MORTEM REPORT (PDF)",
+                    label="DOWNLOAD POST-MORTEM REPORT (PDF)",
                     data=pdf_bytes,
                     file_name=f"PostMortem_Report_{case_info.get('pm_report_no', 'PM').replace('/', '_').replace(' ', '')}.pdf",
                     mime="application/pdf",
@@ -2695,8 +2740,8 @@ elif st.session_state["view"] == "verify":
                 {fb_status_html}
             </div>
             <div style="font-size: 13px; color: #cbd5e1; line-height: 1.5; margin-bottom: 16px;">
-                Official post-mortem records and forensic bioindicator succession findings are restricted to certified medical officers and investigating magistrates. 
-                Please verify your registered departmental email below via Firebase to unlock the official Form PM-5372 dossier.
+                Post-mortem report generation and verification are restricted to authorized examiners. 
+                Please verify your registered email below via Firebase to unlock the Form PM-5372 dossier.
             </div>
         </div>
         """)
@@ -2710,7 +2755,7 @@ elif st.session_state["view"] == "verify":
             v_col_email, v_col_pass = st.columns([1.2, 1.0])
             with v_col_email:
                 v_email = st.text_input(
-                    "Official Registered Email", placeholder="e.g. coroner@necrotrace.gov", key="verify_portal_email")
+                    "Registered Departmental Email", placeholder="e.g. coroner@necrotrace.gov", key="verify_portal_email")
             with v_col_pass:
                 v_pass = st.text_input(
                     "Security Credentials / Passcode", type="password", key="verify_portal_pass")
@@ -2721,13 +2766,15 @@ elif st.session_state["view"] == "verify":
                     if not v_email:
                         st.warning("Please enter an email address to check.")
                     else:
-                        with st.spinner("Checking Firebase Medical Examiner Directory..."):
-                            is_reg, reg_msg = check_email_registered_in_firebase(
+                        with st.spinner("Checking Firebase Registry..."):
+                            reg_status = check_email_registered_in_firebase(
                                 v_email)
-                        if is_reg:
-                            st.success(f"Registered: {reg_msg}")
+                        if reg_status:
+                            st.success(
+                                f"Email '{v_email}' is REGISTERED in the Directory. Please enter passcode and click authenticate.")
                         else:
-                            st.error(f"ACCESS DENIED: {reg_msg}")
+                            st.info(
+                                f"Email '{v_email}' is not yet enrolled. Please use the 'Register' tab to enroll.")
 
             with btn_col2:
                 if st.button("AUTHENTICATE & UNLOCK DOSSIER", use_container_width=True, key="btn_auth_unlock"):
@@ -2769,7 +2816,13 @@ elif st.session_state["view"] == "verify":
             r_pass = st.text_input(
                 "Assign Password (min. 6 characters)", type="password", key="reg_officer_pass")
 
-            if st.button("ENROLL OFFICER IN FORENSIC DIRECTORY", use_container_width=True, key="btn_register_officer"):
+            r_consent = st.checkbox(
+                "I consent to my name, email, badge number, and station being stored securely in Firebase (Google Cloud) for authentication purposes. I have read the [Privacy Policy](?view=privacy).",
+                value=False,
+                key="verify_reg_consent"
+            )
+
+            if st.button("ENROLL OFFICER IN FORENSIC DIRECTORY", use_container_width=True, key="btn_register_officer", disabled=not r_consent):
                 if not r_email or not r_pass or not r_name:
                     st.warning(
                         "Please provide Name, Email, and a secure Password.")
@@ -2813,7 +2866,7 @@ elif st.session_state["view"] == "verify":
                 <div style="display: flex; align-items: center; gap: 12px;">
                     <span style="font-size: 28px; color: #34d399;">✓</span>
                     <div>
-                        <div class="mono-tag" style="color: #6ee7b7; font-size: 10px;">FIREBASE &amp; FIRESTORE VERIFIED &bull; ISO 17025 CHAIN OF CUSTODY</div>
+                        <div class="mono-tag" style="color: #6ee7b7; font-size: 10px;">FIREBASE &amp; FIRESTORE VERIFIED &bull; CHAIN-OF-CUSTODY PROTOCOL</div>
                         <div style="font-size: 20px; font-weight: 600; color: #ffffff;">AUTHORIZED EXAMINER: {off_name}</div>
                     </div>
                 </div>
@@ -2879,16 +2932,16 @@ elif st.session_state["view"] == "verify":
             "dropped_taxa": 0,
         }
 
-        with st.spinner("Generating authenticated Court-Admissible PDF (Form PM-5372)..."):
+        with st.spinner("Generating Form PM-5372 PDF Report..."):
             verified_pdf_bytes = generate_forensic_pdf(
                 v_case_meta, v_pmi_find, v_qc_met)
 
         col_dl, col_so = st.columns([3, 1])
         with col_dl:
             st.download_button(
-                label="DOWNLOAD OFFICIAL FORM PM-5372 (CERTIFIED PDF)",
+                label="DOWNLOAD FORM PM-5372 (PDF)",
                 data=verified_pdf_bytes,
-                file_name=f"Certified_PostMortem_{clean_case_id}.pdf",
+                file_name=f"PostMortem_Report_{clean_case_id}.pdf",
                 mime="application/pdf",
                 use_container_width=True,
             )
@@ -2903,7 +2956,7 @@ elif st.session_state["view"] == "verify":
         <!-- Top Status Banner -->
         <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #2d3e40; padding-bottom: 20px; margin-bottom: 20px;">
             <div>
-                <div class="mono-tag" style="color: var(--color-bioluminescent-lime); margin-bottom: 4px;">OFFICIAL INQUEST RECORD • FORM NO. PM-5372</div>
+                <div class="mono-tag" style="color: var(--color-bioluminescent-lime); margin-bottom: 4px;">INQUEST REPORT SUMMARY &bull; FORM NO. PM-5372</div>
                 <div style="font-size: 24px; font-weight: 500; color: #ffffff; letter-spacing: -0.01em;">AUTHENTICATED POST-MORTEM DOSSIER</div>
                 <div style="font-family: var(--font-mono); font-size: 12px; color: var(--color-graphite); margin-top: 4px;">
                     Central Forensic Science Laboratory &bull; Medico-Legal Verification Seal
@@ -2911,7 +2964,7 @@ elif st.session_state["view"] == "verify":
             </div>
             <div style="background: rgba(6, 78, 59, 0.4); border: 1.5px solid #10b981; padding: 12px 18px; border-radius: 10px; text-align: center;">
                 <div style="font-size: 20px;">✓</div>
-                <div style="font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: #6ee7b7; letter-spacing: 0.05em;">TAMPER-EVIDENT</div>
+                <div style="font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: #6ee7b7; letter-spacing: 0.05em;">HASH-VERIFIED</div>
                 <div style="font-size: 9px; color: #a7f3d0;">RECORD MATCHED</div>
             </div>
         </div>
@@ -2967,7 +3020,7 @@ elif st.session_state["view"] == "verify":
                 {hash_param if len(hash_param) > 20 else hash_param + '7f83b165ff29a1b4d081f2157790b8f44d187ef1ca14efef22384a51e60f0891'[len(hash_param):]}
             </div>
             <div style="font-size: 10.5px; color: #94a3b8; line-height: 1.45;">
-                <b>Judicial Notice:</b> This digital verification certificate is generated in compliance with Daubert standard admissibility (Federal Rule of Evidence 702) and Frye scientific acceptance protocols. It corroborates the physical autopsy Form PM-5372 bearing matching cryptographic hash.
+                <b>Notice:</b> This digital verification certificate is generated following methodologies inspired by Daubert and Frye evidentiary standards for research and demonstration purposes. This is NOT a legally certified document and must not be used as evidence in any legal proceeding.
             </div>
         </div>
     </div>
@@ -2993,3 +3046,322 @@ elif st.session_state["view"] == "verify":
             st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
+
+
+# =============================================================================
+# VIEW 4: PRIVACY POLICY
+# =============================================================================
+elif st.session_state["view"] == "privacy":
+    render_clean_html(f"""
+    <style>
+    div[data-testid="stMainBlockContainer"],
+    .main .block-container,
+    .stMainBlockContainer,
+    .block-container {{
+        max-width: 820px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-top: 32px !important;
+        padding-bottom: 80px !important;
+    }}
+    </style>
+    """)
+
+    render_clean_html(f"""
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 32px;">
+        <img src="{LOGO_ICON_B64}" style="height: 28px; width: 28px;" alt="NecroTrace Logo" />
+        <span style="font-size: 20px; font-weight: 700; color: #ffffff;">necrotrace</span>
+        <span style="font-size: 13px; color: var(--color-graphite); margin-left: 8px;">Privacy Policy</span>
+    </div>
+    """)
+
+    st.markdown("""
+# Privacy Policy
+
+**Last Updated:** September 2026  
+**Data Controller:** Tanish Walture (Team BroomWroom)  
+**Contact:** tanishwalture@gmail.com
+
+---
+
+## 1. What Data We Collect
+
+When you register as an examiner on NecroTrace, we collect the following personal information:
+
+| Data Field | Purpose | Required? |
+|---|---|---|
+| **Full Name & Title** | Identify authorized examiners in reports | Yes |
+| **Email Address** | Firebase authentication (login/registration) | Yes |
+| **Security Passcode** | Account authentication (hashed by Firebase, never stored in plaintext) | Yes |
+| **Badge / Registration Number** | Professional identification on generated reports | Optional |
+| **Police Station / Forensic Lab** | Institutional affiliation for report context | Optional |
+| **Professional Role** | Role-based display in the application | Optional |
+
+**Case data** entered during autopsy examinations (deceased name, PM report number, morphological findings, etc.) is processed **locally in your browser session** and is **NOT stored** in any database. It is used only to generate the PDF report during your active session.
+
+**Dynamic passcodes** are temporarily stored in Cloud Firestore for cross-device synchronization and automatically expire.
+
+---
+
+## 2. How & Where Your Data Is Stored
+
+- **Firebase Authentication** (Google Cloud Platform): Your email and hashed password are stored by Firebase Identity Platform under Google's security infrastructure.
+- **Cloud Firestore** (Google Cloud Platform): Your officer profile (name, badge, station, role, email, enrollment date, last login) is stored in the `officers` collection.
+- **Data Residency**: Data is processed on Google's servers, which may include US-based data centers.
+
+We do **NOT** store:
+- Case examination data (processed in-session only)
+- Browsing analytics or usage tracking data
+- Marketing profiles or advertising identifiers
+
+---
+
+## 3. Third-Party Services
+
+| Service | Purpose | Data Transferred |
+|---|---|---|
+| **Firebase Authentication** (Google) | User login & registration | Email, hashed password |
+| **Cloud Firestore** (Google) | Officer profile storage, passcode sync | Profile metadata |
+| **Google Fonts API** | Typography (Inter Tight, Roboto Mono) | Your IP address (standard HTTP request) |
+| **unpkg CDN** (Cloudflare) | Lenis smooth scroll library | Your IP address (standard HTTP request) |
+
+We do **NOT** use any analytics services, tracking pixels, advertising networks, or cookie-based profiling.
+
+---
+
+## 4. Your Rights (DPDPA 2023 & GDPR)
+
+Under India's Digital Personal Data Protection Act 2023 and the EU General Data Protection Regulation, you have the right to:
+
+- **Access**: Request a copy of your stored personal data
+- **Correction**: Request correction of inaccurate data
+- **Deletion**: Request erasure of your data from our systems
+- **Withdraw Consent**: Withdraw your registration consent at any time
+
+To exercise any of these rights, email: **tanishwalture@gmail.com**
+
+---
+
+## 5. Data Retention
+
+- Your officer profile is retained until you request deletion.
+- Case passcodes are temporary and expire automatically.
+- Session data is cleared when you close your browser.
+
+---
+
+## 6. Children's Privacy
+
+NecroTrace is a professional forensic research tool and is not intended for use by individuals under the age of 18.
+
+---
+
+## 7. Changes to This Policy
+
+We may update this policy from time to time. The "Last Updated" date at the top will reflect the most recent revision.
+    """)
+
+    if st.button("← BACK TO LANDING PAGE", use_container_width=True):
+        st.session_state["view"] = "landing"
+        st.query_params["view"] = "landing"
+        st.rerun()
+
+
+# =============================================================================
+# VIEW 5: TERMS & CONDITIONS
+# =============================================================================
+elif st.session_state["view"] == "terms":
+    render_clean_html(f"""
+    <style>
+    div[data-testid="stMainBlockContainer"],
+    .main .block-container,
+    .stMainBlockContainer,
+    .block-container {{
+        max-width: 820px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-top: 32px !important;
+        padding-bottom: 80px !important;
+    }}
+    </style>
+    """)
+
+    render_clean_html(f"""
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 32px;">
+        <img src="{LOGO_ICON_B64}" style="height: 28px; width: 28px;" alt="NecroTrace Logo" />
+        <span style="font-size: 20px; font-weight: 700; color: #ffffff;">necrotrace</span>
+        <span style="font-size: 13px; color: var(--color-graphite); margin-left: 8px;">Terms & Conditions</span>
+    </div>
+    """)
+
+    st.markdown("""
+# Terms & Conditions
+
+**Last Updated:** September 2026  
+**Operator:** Tanish Walture (Team BroomWroom)  
+**Contact:** tanishwalture@gmail.com
+
+---
+
+## 1. Nature of the Platform
+
+> ⚠️ **NecroTrace is an academic research prototype.** It is developed as an educational demonstration of forensic metagenomics and machine learning for postmortem interval estimation. It is **NOT** an officially certified, validated, or approved forensic tool.
+
+---
+
+## 2. No Official Certification
+
+- NecroTrace has **NOT** been certified or accredited under **ISO 17025** or any other quality standard.
+- NecroTrace has **NOT** been validated under the **Daubert** or **Frye** evidentiary standards.
+- Generated reports (Form PM-5372) are **NOT** official medico-legal documents and must **NOT** be submitted as evidence in any court, tribunal, or legal proceeding.
+- The platform does **NOT** replace professional forensic pathology, medical examination, or expert testimony.
+
+---
+
+## 3. Permitted Use
+
+NecroTrace is provided for:
+- Academic and educational research
+- Scientific demonstration and learning
+- Hackathon and prototype showcases
+- Personal exploration of forensic metagenomics concepts
+
+**Prohibited Use:** Using NecroTrace outputs in real criminal investigations, legal proceedings, medical diagnoses, or any context where lives, liberty, or legal outcomes depend on the results.
+
+---
+
+## 4. Disclaimer of Warranties
+
+This software is provided **"AS IS"** under the MIT License, without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and noninfringement.
+
+The authors shall **NOT** be held liable for any claim, damages, or other liability arising from the use of this software.
+
+---
+
+## 5. Intellectual Property
+
+- NecroTrace source code is licensed under the [MIT License](https://github.com/BroomWroom/NecroTrace/blob/main/LICENSE).
+- Microscopy images used in the bioindicator viewports are sourced from scientific databases for educational purposes.
+- The NecroTrace name, logo, and design system are the property of Tanish Walture / Team BroomWroom.
+
+---
+
+## 6. Limitation of Liability
+
+In no event shall the authors or copyright holders be liable for any direct, indirect, incidental, special, exemplary, or consequential damages arising in any way out of the use of this software, even if advised of the possibility of such damage.
+
+---
+
+## 7. Governing Law
+
+These terms are governed by the laws of India, including the Information Technology Act 2000 and the Digital Personal Data Protection Act 2023.
+
+---
+
+## 8. Changes to These Terms
+
+We reserve the right to modify these terms at any time. Continued use of the platform after changes constitutes acceptance of the updated terms.
+    """)
+
+    if st.button("← BACK TO LANDING PAGE", use_container_width=True):
+        st.session_state["view"] = "landing"
+        st.query_params["view"] = "landing"
+        st.rerun()
+
+
+# =============================================================================
+# VIEW 6: COOKIE & THIRD-PARTY POLICY
+# =============================================================================
+elif st.session_state["view"] == "cookies":
+    render_clean_html(f"""
+    <style>
+    div[data-testid="stMainBlockContainer"],
+    .main .block-container,
+    .stMainBlockContainer,
+    .block-container {{
+        max-width: 820px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-top: 32px !important;
+        padding-bottom: 80px !important;
+    }}
+    </style>
+    """)
+
+    render_clean_html(f"""
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 32px;">
+        <img src="{LOGO_ICON_B64}" style="height: 28px; width: 28px;" alt="NecroTrace Logo" />
+        <span style="font-size: 20px; font-weight: 700; color: #ffffff;">necrotrace</span>
+        <span style="font-size: 13px; color: var(--color-graphite); margin-left: 8px;">Cookie & Third-Party Policy</span>
+    </div>
+    """)
+
+    st.markdown("""
+# Cookie & Third-Party Policy
+
+**Last Updated:** September 2026
+
+---
+
+## 1. Cookies Used
+
+NecroTrace itself does **NOT** set any custom cookies. However, the underlying Streamlit framework sets essential session cookies:
+
+| Cookie | Purpose | Type | Consent Required? |
+|---|---|---|---|
+| **Streamlit Session Cookie** | Maintains your application session state | Strictly Necessary | No (essential for functionality) |
+
+There are **NO** analytics cookies, advertising cookies, or tracking cookies.
+
+---
+
+## 2. Third-Party Resources
+
+The following external resources are loaded when you visit NecroTrace:
+
+| Resource | Provider | Purpose | Data Sent |
+|---|---|---|---|
+| **Google Fonts API** | Google LLC | Loads Inter Tight & Roboto Mono typefaces | Your IP address (standard HTTP) |
+| **Lenis CSS** (unpkg) | Cloudflare | Smooth scrolling stylesheet | Your IP address (standard HTTP) |
+| **Firebase Auth API** | Google LLC | User authentication (login/register) | Email & hashed password |
+| **Firestore API** | Google LLC | Officer profile storage & passcode sync | Profile metadata |
+
+---
+
+## 3. Analytics & Tracking
+
+NecroTrace does **NOT** use:
+- ❌ Google Analytics
+- ❌ Facebook Pixel
+- ❌ Hotjar, Mixpanel, Segment, or any analytics platform
+- ❌ Advertising networks or retargeting
+- ❌ Fingerprinting or device tracking
+
+---
+
+## 4. Cookie Consent Banner
+
+Because NecroTrace only uses **strictly necessary cookies** (Streamlit session management) and does **not** use any marketing, profiling, or analytics cookies:
+
+- Under **Indian law** (IT Act 2000, DPDPA 2023): No cookie consent banner is required.
+- Under **EU ePrivacy Directive / GDPR**: Strictly necessary cookies are exempt from the consent requirement.
+
+Therefore, no cookie consent banner is displayed.
+
+---
+
+## 5. How to Control Cookies
+
+You can control or delete cookies through your browser settings. Note that blocking the Streamlit session cookie will prevent the application from functioning.
+
+---
+
+## 6. Contact
+
+For questions about this policy, contact: **tanishwalture@gmail.com**
+    """)
+
+    if st.button("← BACK TO LANDING PAGE", use_container_width=True):
+        st.session_state["view"] = "landing"
+        st.query_params["view"] = "landing"
+        st.rerun()

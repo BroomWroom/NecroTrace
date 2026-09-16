@@ -12,6 +12,8 @@
   [![License: MIT](https://img.shields.io/badge/License-MIT-cef79e.svg?style=flat-square&color=222f30&labelColor=cef79e)](LICENSE)
 </div>
 
+> ⚠️ **ACADEMIC RESEARCH PROTOTYPE** — NecroTrace is an educational demonstration project. It is NOT certified, validated, or approved for use in actual forensic investigations, criminal cases, or legal proceedings. All generated reports are for research and demonstration purposes only. The platform has NOT been accredited under ISO 17025 or validated under Daubert/Frye standards.
+
 ---
 
 ## Executive Abstract
@@ -23,7 +25,7 @@ Forensic determination of the time elapsed since death (Postmortem Interval, **P
 1. **Metagenomic Succession Clock:** Leverages 16S rRNA taxonomic abundance profiles to track predictable community blooms and crashes across postmortem decay stages.
 2. **Quantile Machine Learning:** Employs tuned Gradient Boosted Quantile Regressors (XGBoost) outputting calibrated 10th, 50th, and 90th percentile bounds rather than subjective single-point guesses.
 3. **Medical Examiner Triage Workflow:** Bridges physical macroscopic observations (corneal opacity, skin marbling, bloating, purged fluids) with molecular bioindicators.
-4. **Courtroom-Admissible Dossier Export:** Direct programmatic synthesis of official **Form PM-5372** postmortem autopsy reports with cryptographic SHA-256 verification seals.
+4. **Forensic Dossier Export (Research Demonstration):** Programmatic synthesis of **Form PM-5372**-style postmortem autopsy reports with cryptographic SHA-256 verification seals.
 
 ```
        [ Metagenomic Data ] (16S rRNA OTU / ASV Abundance Tables)
@@ -43,7 +45,7 @@ Forensic determination of the time elapsed since death (Postmortem Interval, **P
                  ▼
    ┌────────────────────────────┐
    │ Diagnostic Triage &        │  Interactive Darkroom Medical Examiner Suite
-   │ Medico-Legal Dossier       │  Official Form PM-5372 PDF Courtroom Export
+   │ Medico-Legal Dossier       │  Form PM-5372 PDF Research Export
    └────────────────────────────┘
 ```
 
@@ -58,7 +60,7 @@ Forensic determination of the time elapsed since death (Postmortem Interval, **P
 | **Environmental Robustness** | Highly volatile to ambient drafts, humidity, clothing | Normalized across temperature and microenvironment covariates |
 | **Analytical Objectivity** | Subjective assessment by investigator | Algorithmic, reproducible mathematical feature extraction |
 | **Uncertainty Quantification** | Heuristic, uncalibrated estimation windows | Formal statistical confidence intervals via Quantile Regression (p10, p50, p90) |
-| **Evidentiary Standard** | Frequently disputed under Daubert / Frye challenges | Fully auditable bioinformatic provenance with SHA-256 cryptographic verification |
+| **Evidentiary Standard** | Frequently disputed under Daubert / Frye challenges | Auditable bioinformatic provenance with SHA-256 cryptographic verification (research demonstration) |
 
 ---
 
@@ -196,7 +198,7 @@ This guarantees that:
 
 ## Firebase Authentication & QR-Gated Chain of Custody
 
-To comply with ISO 17025 and Federal Rules of Evidence on chain-of-custody integrity, post-mortem dossiers cannot be accessed anonymously:
+Inspired by ISO 17025 chain-of-custody principles and Federal Rules of Evidence, report access is gated behind authentication:
 
 1. **Step 5 Report Locking**: When an autopsy dossier is synthesized, the PDF download is encrypted/locked by default.
 2. **High-Contrast QR Code**: The system encodes a case-specific payload into a high-contrast SVG QR seal pointing to `?view=verify`.
@@ -211,12 +213,14 @@ To comply with ISO 17025 and Federal Rules of Evidence on chain-of-custody integ
 ---
 
 
-## Evidentiary Standards & Legal Compliance
+## Evidentiary Standards & Academic Scope
 
-NecroTrace was architected to satisfy judicial evidentiary standards for scientific expert testimony (e.g., *Daubert v. Merrell Dow Pharmaceuticals, Inc.* and *Frye v. United States*):
+NecroTrace was designed with awareness of judicial evidentiary standards for scientific expert testimony (e.g., *Daubert v. Merrell Dow Pharmaceuticals, Inc.* and *Frye v. United States*). However, **the platform has NOT been formally validated or certified under these standards**:
 - **Known Error Rates:** Quantile uncertainty bounds explicitly report empirical coverage and confidence intervals.
 - **Standardized Protocols:** Form PM-5372 integrates clinical specimen collection sites, DNA adequacy clearance, and institutional registration numbers.
 - **Cryptographic Auditability:** Every exported PDF includes a SHA-256 checksum generated over the specimen particulars and estimated intervals.
+
+> ⚠️ **Disclaimer**: NecroTrace is an academic research prototype developed by Tanish Walture (Team BroomWroom). Generated reports are for educational and research demonstration purposes only and must NOT be used as evidence in any legal proceeding.
 
 ---
 
