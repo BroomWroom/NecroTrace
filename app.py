@@ -138,8 +138,10 @@ if not st.session_state.get("authenticated_officer"):
 if st.session_state.get("authenticated_officer"):
     set_active_officer_session(st.session_state["authenticated_officer"])
 
-VALID_VIEWS = ["landing", "examination", "verify", "privacy", "terms", "cookies"]
-if "view" not in st.session_state:
+VALID_VIEWS = ["landing", "examination", "verify", "privacy", "terms", "cookies", "404"]
+if query_view and query_view not in VALID_VIEWS and query_view != "logout":
+    st.session_state["view"] = "404"
+elif "view" not in st.session_state:
     st.session_state["view"] = query_view if query_view in VALID_VIEWS else "landing"
 elif query_view in VALID_VIEWS and query_view != st.session_state["view"]:
     st.session_state["view"] = query_view
@@ -611,6 +613,136 @@ GLOBAL_CSS = """
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
+# SHARED STYLING FOR CENTERED LEGAL & ERROR PAGES
+# -----------------------------------------------------------------------------
+LEGAL_PAGE_CSS = """
+<style>
+div[data-testid="stAppViewContainer"] > section.main,
+div[data-testid="stAppViewContainer"] .stMain {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+}
+
+div[data-testid="stMainBlockContainer"],
+div[data-testid="stAppViewBlockContainer"],
+.main .block-container,
+.stMainBlockContainer,
+.block-container,
+div[class*="stMainBlockContainer"],
+div[class*="block-container"] {
+    max-width: 740px !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    padding-top: 28px !important;
+    padding-bottom: 96px !important;
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+    box-sizing: border-box !important;
+}
+
+/* Document Container Card */
+.document-card {
+    background: #111a1b;
+    border: 1px solid #202e30;
+    border-radius: 12px;
+    padding: 36px 36px;
+    margin-bottom: 24px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+}
+
+@media (max-width: 640px) {
+    .document-card {
+        padding: 24px 18px;
+    }
+}
+
+/* Clean Tables */
+div[data-testid="stMarkdownContainer"] table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin: 20px 0 !important;
+    font-size: 13px !important;
+    background: #0d1415 !important;
+    border: 1px solid #233436 !important;
+    border-radius: 6px !important;
+    overflow: hidden !important;
+}
+
+div[data-testid="stMarkdownContainer"] th {
+    background: #162325 !important;
+    color: #cef79e !important;
+    font-family: var(--font-mono) !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.04em !important;
+    padding: 10px 14px !important;
+    border: 1px solid #233436 !important;
+    text-align: left !important;
+}
+
+div[data-testid="stMarkdownContainer"] td {
+    padding: 10px 14px !important;
+    border: 1px solid #1a2729 !important;
+    color: #cbd5e1 !important;
+    line-height: 1.5 !important;
+}
+
+div[data-testid="stMarkdownContainer"] tr:nth-child(even) td {
+    background: rgba(22, 35, 37, 0.35) !important;
+}
+
+/* Headings & Text */
+div[data-testid="stMarkdownContainer"] h1 {
+    font-size: 28px !important;
+    font-weight: 600 !important;
+    color: #ffffff !important;
+    letter-spacing: -0.02em !important;
+    margin-top: 0 !important;
+    margin-bottom: 8px !important;
+}
+
+div[data-testid="stMarkdownContainer"] h2 {
+    font-size: 18px !important;
+    font-weight: 600 !important;
+    color: #cef79e !important;
+    letter-spacing: -0.01em !important;
+    margin-top: 32px !important;
+    margin-bottom: 12px !important;
+    border-bottom: 1px solid #202e30 !important;
+    padding-bottom: 8px !important;
+}
+
+div[data-testid="stMarkdownContainer"] p,
+div[data-testid="stMarkdownContainer"] li {
+    font-size: 14px !important;
+    color: #c9cbbe !important;
+    line-height: 1.65 !important;
+}
+
+div[data-testid="stMarkdownContainer"] blockquote {
+    border-left: 3px solid #f59e0b !important;
+    padding-left: 14px !important;
+    margin: 16px 0 !important;
+    background: rgba(245, 158, 11, 0.06) !important;
+    border-radius: 0 6px 6px 0 !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+}
+
+div[data-testid="stMarkdownContainer"] a {
+    color: #cef79e !important;
+    text-decoration: none !important;
+}
+
+div[data-testid="stMarkdownContainer"] a:hover {
+    text-decoration: underline !important;
+}
+</style>
+"""
+
+# -----------------------------------------------------------------------------
 # ACTIVE SMOOTH SCROLL ENGINE & ANCHOR GLIDE (IFRAME CONTROLLER)
 # -----------------------------------------------------------------------------
 SMOOTH_SCROLL_CONTROLLER_HTML = """
@@ -633,20 +765,27 @@ SMOOTH_SCROLL_CONTROLLER_HTML = """
                 scrollContainer.style.setProperty('background-color', '#222f30', 'important');
             }
 
-            const isExam = window.parent.location.search.includes('view=examination');
+            const searchStr = window.parent.location.search || '';
+            const isExam = searchStr.includes('view=examination');
+            const isLegalOr404 = searchStr.includes('view=privacy') || 
+                                 searchStr.includes('view=terms') || 
+                                 searchStr.includes('view=cookies') || 
+                                 searchStr.includes('view=404');
+            const isCentered = isExam || isLegalOr404;
 
             // Set container geometry based on active view
             const blockContainers = parentDoc.querySelectorAll('[data-testid="stMainBlockContainer"], .block-container, div.stMainBlockContainer');
             blockContainers.forEach(function(el) {
-                if (isExam) {
-                    el.style.setProperty('max-width', '880px', 'important');
+                if (isCentered) {
+                    const maxWidth = isLegalOr404 ? '740px' : '880px';
+                    el.style.setProperty('max-width', maxWidth, 'important');
                     el.style.setProperty('width', '100%', 'important');
                     el.style.setProperty('margin-left', 'auto', 'important');
                     el.style.setProperty('margin-right', 'auto', 'important');
                     el.style.setProperty('padding-left', '24px', 'important');
                     el.style.setProperty('padding-right', '24px', 'important');
-                    el.style.setProperty('padding-top', '24px', 'important');
-                    el.style.setProperty('padding-bottom', '80px', 'important');
+                    el.style.setProperty('padding-top', isLegalOr404 ? '28px' : '24px', 'important');
+                    el.style.setProperty('padding-bottom', '96px', 'important');
                 } else {
                     el.style.setProperty('padding-top', '0px', 'important');
                     el.style.setProperty('padding-bottom', '0px', 'important');
@@ -658,10 +797,10 @@ SMOOTH_SCROLL_CONTROLLER_HTML = """
                 }
             });
 
-            // Center the main section wrapper on examination view
+            // Center the main section wrapper on centered views
             const mainSection = parentDoc.querySelector('section.main') || parentDoc.querySelector('[data-testid="stMain"]');
             if (mainSection) {
-                if (isExam) {
+                if (isCentered) {
                     mainSection.style.setProperty('display', 'flex', 'important');
                     mainSection.style.setProperty('flex-direction', 'column', 'important');
                     mainSection.style.setProperty('align-items', 'center', 'important');
@@ -3052,35 +3191,33 @@ elif st.session_state["view"] == "verify":
 # VIEW 4: PRIVACY POLICY
 # =============================================================================
 elif st.session_state["view"] == "privacy":
-    render_clean_html(f"""
-    <style>
-    div[data-testid="stMainBlockContainer"],
-    .main .block-container,
-    .stMainBlockContainer,
-    .block-container {{
-        max-width: 820px !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
-        padding-top: 32px !important;
-        padding-bottom: 80px !important;
-    }}
-    </style>
-    """)
+    render_clean_html(LEGAL_PAGE_CSS)
 
     render_clean_html(f"""
-    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 32px;">
-        <img src="{LOGO_ICON_B64}" style="height: 28px; width: 28px;" alt="NecroTrace Logo" />
-        <span style="font-size: 20px; font-weight: 700; color: #ffffff;">necrotrace</span>
-        <span style="font-size: 13px; color: var(--color-graphite); margin-left: 8px;">Privacy Policy</span>
-    </div>
+    <header style="width: 100%; border-bottom: 1px solid var(--color-graphite); padding: 12px 0 20px 0; margin-bottom: 24px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <img src="{LOGO_ICON_B64}" style="height: 26px; width: 26px; object-fit: contain; vertical-align: middle; filter: drop-shadow(0 0 8px rgba(116, 194, 92, 0.35));" alt="NecroTrace Logo" />
+                <span style="font-family: var(--font-mono); font-size: 13px; color: var(--color-paper); font-weight: 600; letter-spacing: 0.04em;">
+                    NECROTRACE <span style="color: var(--color-graphite);">//</span> COMPLIANCE
+                </span>
+                <span style="font-family: var(--font-mono); font-size: 11px; color: var(--color-bioluminescent-lime); letter-spacing: 0.03em;">
+                    PRIVACY PROTOCOL
+                </span>
+            </div>
+            <div>
+                <a href="?view=landing" target="_self" class="sober-btn-ghost" style="padding: 5px 14px; font-size: 11px; height: 32px; min-height: 32px; text-decoration: none;">&larr; PLATFORM OVERVIEW</a>
+            </div>
+        </div>
+    </header>
     """)
 
     st.markdown("""
 # Privacy Policy
 
-**Last Updated:** September 2026  
+**Effective Date:** September 2026  
 **Data Controller:** Tanish Walture (Team BroomWroom)  
-**Contact:** tanishwalture@gmail.com
+**Primary Contact:** [tanishwalture@gmail.com](mailto:tanishwalture@gmail.com)
 
 ---
 
@@ -3091,277 +3228,374 @@ When you register as an examiner on NecroTrace, we collect the following persona
 | Data Field | Purpose | Required? |
 |---|---|---|
 | **Full Name & Title** | Identify authorized examiners in reports | Yes |
-| **Email Address** | Firebase authentication (login/registration) | Yes |
-| **Security Passcode** | Account authentication (hashed by Firebase, never stored in plaintext) | Yes |
-| **Badge / Registration Number** | Professional identification on generated reports | Optional |
+| **Email Address** | Firebase authentication (login & registration) | Yes |
+| **Security Passcode** | Account access (hashed via Firebase, never in plaintext) | Yes |
+| **Badge / Registration Number** | Institutional identification on generated reports | Optional |
 | **Police Station / Forensic Lab** | Institutional affiliation for report context | Optional |
-| **Professional Role** | Role-based display in the application | Optional |
+| **Professional Role** | Role classification within the application | Optional |
 
-**Case data** entered during autopsy examinations (deceased name, PM report number, morphological findings, etc.) is processed **locally in your browser session** and is **NOT stored** in any database. It is used only to generate the PDF report during your active session.
+> 🔒 **Case Examination Data**: All clinical autopsy particulars entered during an examination (deceased demographics, morphological findings, temperature, post-mortem intervals) are processed **ephemerally in your active browser session**. They are **NOT stored in any database** and are discarded upon session end.
 
-**Dynamic passcodes** are temporarily stored in Cloud Firestore for cross-device synchronization and automatically expire.
+**Dynamic Passcodes**: Temporary 6-digit release tokens are stored in Cloud Firestore for cross-device synchronization and expire automatically within 3 minutes.
 
 ---
 
-## 2. How & Where Your Data Is Stored
+## 2. Data Storage & Infrastructure
 
-- **Firebase Authentication** (Google Cloud Platform): Your email and hashed password are stored by Firebase Identity Platform under Google's security infrastructure.
-- **Cloud Firestore** (Google Cloud Platform): Your officer profile (name, badge, station, role, email, enrollment date, last login) is stored in the `officers` collection.
-- **Data Residency**: Data is processed on Google's servers, which may include US-based data centers.
+- **Firebase Authentication** (Google Cloud Platform): Stores registered emails and cryptographically hashed passwords.
+- **Cloud Firestore** (Google Cloud Platform): Stores officer profiles (`name`, `badge`, `station`, `role`, `email`, `enrolled_at`, `last_login`) in the secured `officers` collection.
+- **Data Residency**: Cloud resources are hosted within Google Cloud infrastructure and may process data through secure data centers internationally.
 
 We do **NOT** store:
-- Case examination data (processed in-session only)
-- Browsing analytics or usage tracking data
-- Marketing profiles or advertising identifiers
+- Autopsy case notes or specimen metadata across sessions
+- Behavioral analytics, heatmaps, or tracking pixels
+- Commercial advertising identifiers or profiles
 
 ---
 
-## 3. Third-Party Services
+## 3. Third-Party Services & Integrations
 
-| Service | Purpose | Data Transferred |
-|---|---|---|
-| **Firebase Authentication** (Google) | User login & registration | Email, hashed password |
-| **Cloud Firestore** (Google) | Officer profile storage, passcode sync | Profile metadata |
-| **Google Fonts API** | Typography (Inter Tight, Roboto Mono) | Your IP address (standard HTTP request) |
-| **unpkg CDN** (Cloudflare) | Lenis smooth scroll library | Your IP address (standard HTTP request) |
+| Provider | Service | Purpose | Data Transferred |
+|---|---|---|---|
+| **Google LLC** | Firebase Authentication | Identity verification | Email & hashed password |
+| **Google LLC** | Cloud Firestore | Profile & passcode sync | Profile metadata |
+| **Google LLC** | Google Fonts API | Typography delivery | IP address (standard HTTP) |
+| **Cloudflare Inc.** | unpkg CDN | Lenis smooth scroll library | IP address (standard HTTP) |
 
-We do **NOT** use any analytics services, tracking pixels, advertising networks, or cookie-based profiling.
+We do **NOT** integrate tracking pixels, advertising networks, or analytics tools (e.g. Google Analytics, Hotjar, Mixpanel).
 
 ---
 
 ## 4. Your Rights (DPDPA 2023 & GDPR)
 
-Under India's Digital Personal Data Protection Act 2023 and the EU General Data Protection Regulation, you have the right to:
+Under India's **Digital Personal Data Protection Act (DPDPA) 2023** and the EU **GDPR**, you have the following enforceable rights:
 
-- **Access**: Request a copy of your stored personal data
-- **Correction**: Request correction of inaccurate data
-- **Deletion**: Request erasure of your data from our systems
-- **Withdraw Consent**: Withdraw your registration consent at any time
+- **Right to Access**: Request a copy of your stored examiner credentials.
+- **Right to Rectification**: Request correction of any inaccurate profile details.
+- **Right to Erasure**: Request complete deletion of your profile from Cloud Firestore and Firebase Auth.
+- **Right to Withdraw Consent**: Revoke registration consent at any time.
 
-To exercise any of these rights, email: **tanishwalture@gmail.com**
-
----
-
-## 5. Data Retention
-
-- Your officer profile is retained until you request deletion.
-- Case passcodes are temporary and expire automatically.
-- Session data is cleared when you close your browser.
+To exercise any of these rights, email: **[tanishwalture@gmail.com](mailto:tanishwalture@gmail.com)**. Requests are handled within 7 business days.
 
 ---
 
-## 6. Children's Privacy
+## 5. Data Retention & Deletion
 
-NecroTrace is a professional forensic research tool and is not intended for use by individuals under the age of 18.
+- Examiner accounts remain in Cloud Firestore until an account holder requests deletion.
+- Temporary release passcodes expire automatically after 3 minutes.
+- Active session states are cleared when the browser tab or session closes.
 
 ---
 
-## 7. Changes to This Policy
+## 6. Academic Research Scope & Children's Privacy
 
-We may update this policy from time to time. The "Last Updated" date at the top will reflect the most recent revision.
+NecroTrace is an academic research prototype intended for forensic researchers and students aged 18 and above. We do not knowingly collect personal data from minors.
+
+---
+
+## 7. Policy Updates
+
+We may update this policy periodically. The "Effective Date" above will always reflect the latest revision.
     """)
 
-    if st.button("← BACK TO LANDING PAGE", use_container_width=True):
-        st.session_state["view"] = "landing"
-        st.query_params["view"] = "landing"
-        st.rerun()
+    st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+    b_col1, b_col2 = st.columns(2)
+    with b_col1:
+        if st.button("← RETURN TO LANDING MATRIX", use_container_width=True, key="btn_priv_landing"):
+            st.session_state["view"] = "landing"
+            st.query_params["view"] = "landing"
+            st.rerun()
+    with b_col2:
+        if st.button("VIEW TERMS & CONDITIONS →", use_container_width=True, key="btn_priv_terms"):
+            st.session_state["view"] = "terms"
+            st.query_params["view"] = "terms"
+            st.rerun()
 
 
 # =============================================================================
 # VIEW 5: TERMS & CONDITIONS
 # =============================================================================
 elif st.session_state["view"] == "terms":
-    render_clean_html(f"""
-    <style>
-    div[data-testid="stMainBlockContainer"],
-    .main .block-container,
-    .stMainBlockContainer,
-    .block-container {{
-        max-width: 820px !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
-        padding-top: 32px !important;
-        padding-bottom: 80px !important;
-    }}
-    </style>
-    """)
+    render_clean_html(LEGAL_PAGE_CSS)
 
     render_clean_html(f"""
-    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 32px;">
-        <img src="{LOGO_ICON_B64}" style="height: 28px; width: 28px;" alt="NecroTrace Logo" />
-        <span style="font-size: 20px; font-weight: 700; color: #ffffff;">necrotrace</span>
-        <span style="font-size: 13px; color: var(--color-graphite); margin-left: 8px;">Terms & Conditions</span>
-    </div>
+    <header style="width: 100%; border-bottom: 1px solid var(--color-graphite); padding: 12px 0 20px 0; margin-bottom: 24px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <img src="{LOGO_ICON_B64}" style="height: 26px; width: 26px; object-fit: contain; vertical-align: middle; filter: drop-shadow(0 0 8px rgba(116, 194, 92, 0.35));" alt="NecroTrace Logo" />
+                <span style="font-family: var(--font-mono); font-size: 13px; color: var(--color-paper); font-weight: 600; letter-spacing: 0.04em;">
+                    NECROTRACE <span style="color: var(--color-graphite);">//</span> COMPLIANCE
+                </span>
+                <span style="font-family: var(--font-mono); font-size: 11px; color: var(--color-bioluminescent-lime); letter-spacing: 0.03em;">
+                    TERMS OF SERVICE
+                </span>
+            </div>
+            <div>
+                <a href="?view=landing" target="_self" class="sober-btn-ghost" style="padding: 5px 14px; font-size: 11px; height: 32px; min-height: 32px; text-decoration: none;">&larr; PLATFORM OVERVIEW</a>
+            </div>
+        </div>
+    </header>
     """)
 
     st.markdown("""
 # Terms & Conditions
 
-**Last Updated:** September 2026  
-**Operator:** Tanish Walture (Team BroomWroom)  
-**Contact:** tanishwalture@gmail.com
+**Effective Date:** September 2026  
+**Project Lead:** Tanish Walture (Team BroomWroom)  
+**Repository:** [github.com/BroomWroom](https://github.com/BroomWroom)
 
 ---
 
-## 1. Nature of the Platform
+## 1. Academic Research Prototype Notice
 
-> ⚠️ **NecroTrace is an academic research prototype.** It is developed as an educational demonstration of forensic metagenomics and machine learning for postmortem interval estimation. It is **NOT** an officially certified, validated, or approved forensic tool.
-
----
-
-## 2. No Official Certification
-
-- NecroTrace has **NOT** been certified or accredited under **ISO 17025** or any other quality standard.
-- NecroTrace has **NOT** been validated under the **Daubert** or **Frye** evidentiary standards.
-- Generated reports (Form PM-5372) are **NOT** official medico-legal documents and must **NOT** be submitted as evidence in any court, tribunal, or legal proceeding.
-- The platform does **NOT** replace professional forensic pathology, medical examination, or expert testimony.
+> ⚠️ **IMPORTANT NOTICE:** NecroTrace is an **educational research demonstration project** developed for academic showcase purposes. It is **NOT** a certified, accredited, or legally approved clinical forensic instrument.
 
 ---
 
-## 3. Permitted Use
+## 2. No Official Certification or Legal Admissibility
 
-NecroTrace is provided for:
-- Academic and educational research
-- Scientific demonstration and learning
-- Hackathon and prototype showcases
-- Personal exploration of forensic metagenomics concepts
-
-**Prohibited Use:** Using NecroTrace outputs in real criminal investigations, legal proceedings, medical diagnoses, or any context where lives, liberty, or legal outcomes depend on the results.
+- **No ISO 17025 Accreditation:** NecroTrace has NOT undergone accreditation or conformity assessment under ISO/IEC 17025.
+- **No Judicial Validation:** The models, succession curves, and quantile intervals have NOT been validated in an appellate or evidentiary hearing under *Daubert v. Merrell Dow Pharmaceuticals* or *Frye v. United States*.
+- **No Evidence Use:** Generated Post-Mortem Reports (Form PM-5372) are **NOT official medico-legal documents** and must **NOT be submitted as evidence** in courtrooms, judicial inquests, police investigations, or administrative proceedings.
+- **No Substitute for Professional Judgment:** NecroTrace is not a substitute for certified forensic pathologists, medical examiners, or entomological experts.
 
 ---
 
-## 4. Disclaimer of Warranties
+## 3. Permitted & Prohibited Uses
 
-This software is provided **"AS IS"** under the MIT License, without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and noninfringement.
+**Permitted Uses:**
+- Academic research, bioinformatic study, and forensic science pedagogy
+- Computational experimentation with quantile regression & metagenomic clocks
+- Educational hackathon and portfolio demonstrations
 
-The authors shall **NOT** be held liable for any claim, damages, or other liability arising from the use of this software.
+**Prohibited Uses:**
+- Utilizing outputs in actual criminal or civil court cases
+- Making official determinations of time or cause of death
+- Misrepresenting generated documents as accredited government or police records
 
 ---
 
-## 5. Intellectual Property
+## 4. Open-Source Licensing & "AS IS" Disclaimer
 
-- NecroTrace source code is licensed under the [MIT License](https://github.com/BroomWroom/NecroTrace/blob/main/LICENSE).
-- Microscopy images used in the bioindicator viewports are sourced from scientific databases for educational purposes.
-- The NecroTrace name, logo, and design system are the property of Tanish Walture / Team BroomWroom.
+NecroTrace source code is published under the **MIT License**:
+
+```text
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+---
+
+## 5. Intellectual Property & Scientific Attribution
+
+- Biological microscopy assets displayed in bioindicator viewports are sourced from public scientific reference repositories for educational and illustrative use.
+- The NecroTrace architecture, design system, and bioinformatic pipelines are the intellectual creation of Tanish Walture and Team BroomWroom.
 
 ---
 
 ## 6. Limitation of Liability
 
-In no event shall the authors or copyright holders be liable for any direct, indirect, incidental, special, exemplary, or consequential damages arising in any way out of the use of this software, even if advised of the possibility of such damage.
+Under no circumstances shall the authors, developers, or affiliated institutions be held liable for any direct, indirect, special, incidental, or consequential damages resulting from the use or inability to use this platform.
 
 ---
 
 ## 7. Governing Law
 
-These terms are governed by the laws of India, including the Information Technology Act 2000 and the Digital Personal Data Protection Act 2023.
-
----
-
-## 8. Changes to These Terms
-
-We reserve the right to modify these terms at any time. Continued use of the platform after changes constitutes acceptance of the updated terms.
+These Terms are governed by and construed in accordance with the laws of India, including the **Information Technology Act 2000** and the **Digital Personal Data Protection Act 2023**.
     """)
 
-    if st.button("← BACK TO LANDING PAGE", use_container_width=True):
-        st.session_state["view"] = "landing"
-        st.query_params["view"] = "landing"
-        st.rerun()
+    st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+    b_col1, b_col2 = st.columns(2)
+    with b_col1:
+        if st.button("← RETURN TO LANDING MATRIX", use_container_width=True, key="btn_terms_landing"):
+            st.session_state["view"] = "landing"
+            st.query_params["view"] = "landing"
+            st.rerun()
+    with b_col2:
+        if st.button("VIEW COOKIE POLICY →", use_container_width=True, key="btn_terms_cookies"):
+            st.session_state["view"] = "cookies"
+            st.query_params["view"] = "cookies"
+            st.rerun()
 
 
 # =============================================================================
 # VIEW 6: COOKIE & THIRD-PARTY POLICY
 # =============================================================================
 elif st.session_state["view"] == "cookies":
-    render_clean_html(f"""
-    <style>
-    div[data-testid="stMainBlockContainer"],
-    .main .block-container,
-    .stMainBlockContainer,
-    .block-container {{
-        max-width: 820px !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
-        padding-top: 32px !important;
-        padding-bottom: 80px !important;
-    }}
-    </style>
-    """)
+    render_clean_html(LEGAL_PAGE_CSS)
 
     render_clean_html(f"""
-    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 32px;">
-        <img src="{LOGO_ICON_B64}" style="height: 28px; width: 28px;" alt="NecroTrace Logo" />
-        <span style="font-size: 20px; font-weight: 700; color: #ffffff;">necrotrace</span>
-        <span style="font-size: 13px; color: var(--color-graphite); margin-left: 8px;">Cookie & Third-Party Policy</span>
-    </div>
+    <header style="width: 100%; border-bottom: 1px solid var(--color-graphite); padding: 12px 0 20px 0; margin-bottom: 24px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <img src="{LOGO_ICON_B64}" style="height: 26px; width: 26px; object-fit: contain; vertical-align: middle; filter: drop-shadow(0 0 8px rgba(116, 194, 92, 0.35));" alt="NecroTrace Logo" />
+                <span style="font-family: var(--font-mono); font-size: 13px; color: var(--color-paper); font-weight: 600; letter-spacing: 0.04em;">
+                    NECROTRACE <span style="color: var(--color-graphite);">//</span> COMPLIANCE
+                </span>
+                <span style="font-family: var(--font-mono); font-size: 11px; color: var(--color-bioluminescent-lime); letter-spacing: 0.03em;">
+                    COOKIE &amp; DATA DISCLOSURE
+                </span>
+            </div>
+            <div>
+                <a href="?view=landing" target="_self" class="sober-btn-ghost" style="padding: 5px 14px; font-size: 11px; height: 32px; min-height: 32px; text-decoration: none;">&larr; PLATFORM OVERVIEW</a>
+            </div>
+        </div>
+    </header>
     """)
 
     st.markdown("""
 # Cookie & Third-Party Policy
 
-**Last Updated:** September 2026
+**Effective Date:** September 2026  
+**Contact:** [tanishwalture@gmail.com](mailto:tanishwalture@gmail.com)
 
 ---
 
-## 1. Cookies Used
+## 1. What Cookies We Use
 
-NecroTrace itself does **NOT** set any custom cookies. However, the underlying Streamlit framework sets essential session cookies:
+NecroTrace sets **NO marketing, tracking, profiling, or analytical cookies**.
 
-| Cookie | Purpose | Type | Consent Required? |
+The only cookie set during your session is the built-in Streamlit session token:
+
+| Cookie Name | Provider | Purpose | Legal Category | Consent Required? |
+|---|---|---|---|---|
+| **Streamlit Session Cookie** | Streamlit Framework | Maintains routing state and session parameters | Strictly Necessary | **No** (Exempt under IT Act & GDPR) |
+
+---
+
+## 2. External Third-Party Requests
+
+When rendering the NecroTrace interface, your browser loads the following third-party assets:
+
+| Asset | Host | Purpose | Data Transmitted |
 |---|---|---|---|
-| **Streamlit Session Cookie** | Maintains your application session state | Strictly Necessary | No (essential for functionality) |
-
-There are **NO** analytics cookies, advertising cookies, or tracking cookies.
-
----
-
-## 2. Third-Party Resources
-
-The following external resources are loaded when you visit NecroTrace:
-
-| Resource | Provider | Purpose | Data Sent |
-|---|---|---|---|
-| **Google Fonts API** | Google LLC | Loads Inter Tight & Roboto Mono typefaces | Your IP address (standard HTTP) |
-| **Lenis CSS** (unpkg) | Cloudflare | Smooth scrolling stylesheet | Your IP address (standard HTTP) |
-| **Firebase Auth API** | Google LLC | User authentication (login/register) | Email & hashed password |
-| **Firestore API** | Google LLC | Officer profile storage & passcode sync | Profile metadata |
+| **Inter Tight & Roboto Mono Fonts** | `fonts.googleapis.com` | Typography rendering | Standard HTTP request (IP Address) |
+| **Lenis Smooth Scroll CSS** | `unpkg.com` (Cloudflare) | Editorial scrolling styles | Standard HTTP request (IP Address) |
+| **Firebase Auth API** | `identitytoolkit.googleapis.com` | User sign-in & enrollment | Email & password payload |
+| **Firestore Database API** | `firestore.googleapis.com` | Officer profile verification | Profile metadata payload |
 
 ---
 
-## 3. Analytics & Tracking
+## 3. Why We Do Not Show a Cookie Banner
 
-NecroTrace does **NOT** use:
-- ❌ Google Analytics
-- ❌ Facebook Pixel
-- ❌ Hotjar, Mixpanel, Segment, or any analytics platform
-- ❌ Advertising networks or retargeting
-- ❌ Fingerprinting or device tracking
+Because NecroTrace **exclusively uses strictly necessary session cookies** and operates zero advertising or analytics trackers:
+- **Indian IT Act 2000 & DPDPA 2023:** No consent banner required for functional session tokens.
+- **EU ePrivacy Directive & GDPR (Article 5(3)):** Strictly necessary cookies required to provide a service explicitly requested by the user are exempt from consent requirements.
 
 ---
 
-## 4. Cookie Consent Banner
+## 4. Managing Browser Cookies
 
-Because NecroTrace only uses **strictly necessary cookies** (Streamlit session management) and does **not** use any marketing, profiling, or analytics cookies:
-
-- Under **Indian law** (IT Act 2000, DPDPA 2023): No cookie consent banner is required.
-- Under **EU ePrivacy Directive / GDPR**: Strictly necessary cookies are exempt from the consent requirement.
-
-Therefore, no cookie consent banner is displayed.
-
----
-
-## 5. How to Control Cookies
-
-You can control or delete cookies through your browser settings. Note that blocking the Streamlit session cookie will prevent the application from functioning.
-
----
-
-## 6. Contact
-
-For questions about this policy, contact: **tanishwalture@gmail.com**
+You can inspect, block, or delete cookies via your browser's Privacy & Security settings. Note that disabling session cookies will prevent Streamlit from maintaining application state.
     """)
 
-    if st.button("← BACK TO LANDING PAGE", use_container_width=True):
-        st.session_state["view"] = "landing"
-        st.query_params["view"] = "landing"
-        st.rerun()
+    st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+    b_col1, b_col2 = st.columns(2)
+    with b_col1:
+        if st.button("← RETURN TO LANDING MATRIX", use_container_width=True, key="btn_cook_landing"):
+            st.session_state["view"] = "landing"
+            st.query_params["view"] = "landing"
+            st.rerun()
+    with b_col2:
+        if st.button("OPEN AUTOPSY EXAMINATION ROOM →", use_container_width=True, key="btn_cook_exam"):
+            st.session_state["view"] = "examination"
+            st.query_params["view"] = "examination"
+            st.rerun()
+
+
+# =============================================================================
+# VIEW 7: 404 ERROR PAGE (DOSSIER NOT FOUND)
+# =============================================================================
+elif st.session_state["view"] == "404":
+    render_clean_html(LEGAL_PAGE_CSS)
+
+    invalid_view_param = str(st.query_params.get("view", "unknown"))
+    now_utc_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+
+    render_clean_html(f"""
+    <header style="width: 100%; border-bottom: 1px solid var(--color-graphite); padding: 12px 0 20px 0; margin-bottom: 24px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <img src="{LOGO_ICON_B64}" style="height: 26px; width: 26px; object-fit: contain; vertical-align: middle; filter: drop-shadow(0 0 8px rgba(116, 194, 92, 0.35));" alt="NecroTrace Logo" />
+                <span style="font-family: var(--font-mono); font-size: 13px; color: var(--color-paper); font-weight: 600; letter-spacing: 0.04em;">
+                    NECROTRACE <span style="color: var(--color-graphite);">//</span> SYSTEM DIAGNOSTICS
+                </span>
+            </div>
+            <div>
+                <span style="font-family: var(--font-mono); font-size: 11px; color: #f87171; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.4); padding: 4px 10px; border-radius: 6px; letter-spacing: 0.05em;">
+                    ERROR 404 &bull; ROUTE FAULT
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <div style="background: #111a1b; border: 1px solid #283739; border-radius: 14px; padding: 36px 36px; margin-bottom: 24px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);">
+        <div style="display: flex; align-items: baseline; gap: 16px; margin-bottom: 12px;">
+            <span style="font-family: var(--font-mono); font-size: 42px; font-weight: 700; color: #f87171; line-height: 1;">404</span>
+            <span style="font-family: var(--font-mono); font-size: 13px; color: var(--color-graphite); letter-spacing: 0.05em; text-transform: uppercase;">
+                DIAGNOSTIC PROTOCOL // ROUTE NOT RESOLVED
+            </span>
+        </div>
+
+        <h1 style="font-size: 26px; font-weight: 600; color: #ffffff; letter-spacing: -0.02em; margin: 0 0 12px 0;">
+            Forensic Dossier or Pathway Not Found
+        </h1>
+
+        <p style="font-size: 14px; color: #c9cbbe; line-height: 1.6; margin: 0 0 24px 0;">
+            The requested examination route, legal document, or query parameter could not be identified in the NecroTrace platform directory. The resource may have been relocated, archived, or requested with an unrecognized parameter.
+        </p>
+
+        <!-- System Diagnostics Terminal -->
+        <div style="background: #080d0e; border: 1px solid #1c2b2d; border-radius: 8px; padding: 18px; font-family: var(--font-mono); font-size: 12px; color: #94a3b8; margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #1c2b2d; padding-bottom: 8px; margin-bottom: 12px;">
+                <span style="color: var(--color-bioluminescent-lime); font-weight: 600;">SYSTEM TELEMETRY LOG</span>
+                <span style="color: #f87171;">STATUS: 404 NOT_FOUND</span>
+            </div>
+            <div style="display: grid; grid-template-columns: 140px 1fr; gap: 8px; line-height: 1.5;">
+                <span style="color: var(--color-graphite);">REQUESTED VIEW:</span>
+                <span style="color: #ffffff; word-break: break-all;">?view={invalid_view_param}</span>
+                <span style="color: var(--color-graphite);">TIMESTAMP:</span>
+                <span style="color: #cbd5e1;">{now_utc_str}</span>
+                <span style="color: var(--color-graphite);">RESOLUTION:</span>
+                <span style="color: #fca5a5;">UNRESOLVED_ROUTE_EXCEPTION</span>
+                <span style="color: var(--color-graphite);">CORE SERVICES:</span>
+                <span style="color: #6ee7b7;">ACTIVE // NOMINAL</span>
+            </div>
+        </div>
+
+        <!-- Quick Platform Directory -->
+        <div style="border-top: 1px solid #1c2b2d; padding-top: 20px;">
+            <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-graphite); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;">
+                AVAILABLE PLATFORM DIRECTORY:
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px 18px; font-size: 13px;">
+                <a href="?view=landing" style="color: #cef79e; text-decoration: none;">&bull; Platform Overview</a>
+                <a href="?view=examination" style="color: #cef79e; text-decoration: none;">&bull; Examination Suite</a>
+                <a href="?view=verify" style="color: #cef79e; text-decoration: none;">&bull; Verification Portal</a>
+                <a href="?view=privacy" style="color: #cef79e; text-decoration: none;">&bull; Privacy Policy</a>
+                <a href="?view=terms" style="color: #cef79e; text-decoration: none;">&bull; Terms &amp; Conditions</a>
+                <a href="?view=cookies" style="color: #cef79e; text-decoration: none;">&bull; Cookie Policy</a>
+            </div>
+        </div>
+    </div>
+    """)
+
+    err_col1, err_col2 = st.columns(2)
+    with err_col1:
+        if st.button("← RETURN TO PLATFORM OVERVIEW", use_container_width=True, key="btn_404_landing"):
+            st.session_state["view"] = "landing"
+            st.query_params.clear()
+            st.query_params["view"] = "landing"
+            st.rerun()
+    with err_col2:
+        if st.button("OPEN AUTOPSY EXAMINATION ROOM →", use_container_width=True, key="btn_404_exam"):
+            st.session_state["view"] = "examination"
+            st.query_params.clear()
+            st.query_params["view"] = "examination"
+            st.rerun()
+
