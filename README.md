@@ -229,14 +229,15 @@ Each generated autopsy dossier directly embeds the top 8 driving bioindicators a
 Inspired by ISO 17025 chain-of-custody principles and Federal Rules of Evidence, report access is gated behind authentication:
 
 1. **Step 5 Report Locking**: When an autopsy dossier is synthesized, the PDF download is encrypted/locked by default.
-2. **High-Contrast QR Code**: The system encodes a case-specific payload into a high-contrast SVG QR seal pointing to `?view=verify`.
-3. **Mobile Verification Portal**:
-   - An officer scans the QR code on a mobile device or opens the portal.
-   - The portal queries to verify that the officer's email is registered in the Departmental Medical Examiner Directory.
+2. **High-Contrast QR Code**: The system encodes a case-specific payload into a high-contrast SVG QR seal pointing to `?view=verify` with a cryptographic session seed.
+3. **Mandatory Mobile QR Verification**:
+   - Direct browser links to the verification portal are blocked to preserve physical chain of custody.
+   - An authorized officer **compulsorily scans the physical QR code seal** displayed on the report preview using a mobile device.
+   - The mobile portal verifies that the officer's credentials are authenticated in Cloud Firestore.
    - Once authenticated, the officer can:
-     - **Directly download** the certified court-admissible Form PM-5372 PDF onto their mobile device.
-     - Obtain a **Dynamic 6-Digit Workstation Release Passcode** (e.g. `NC-148895`). This code is dynamically generated using a session seed passed via the QR code and synchronized in real-time with the desktop session.
-4. **Dual-Channel Terminal Release**: Entering the 6-digit release code back into the primary mortuary workstation terminal instantly unlocks desktop downloading and physical printing. The system features a 3-minute rolling TOTP window and a refresh mechanism for robust verification.
+     - **Directly download** the Form PM-5372 PDF onto their mobile device.
+     - Obtain a **Dynamic 6-Digit Workstation Release Passcode** (e.g. `NC-148895`) dynamically seeded from the scanned QR code.
+4. **Physical Mortuary Terminal Release**: Entering the 6-digit release passcode back into the mortuary workstation terminal confirms chain of custody and unlocks desktop PDF downloading and physical printing.
 
 ---
 

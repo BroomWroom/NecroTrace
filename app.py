@@ -593,6 +593,113 @@ GLOBAL_CSS = """
         margin: 0 !important;
         padding: 0 !important;
     }
+
+    /* -------------------------------------------------------------------------
+       MOBILE RESPONSIVENESS & TOUCH ADAPTIVE SCALING (< 768px)
+       ------------------------------------------------------------------------- */
+    @media (max-width: 768px) {
+        /* Container and padding optimization */
+        .block-container,
+        div[data-testid="stMainBlockContainer"],
+        .stMainBlockContainer {
+            padding-left: 14px !important;
+            padding-right: 14px !important;
+            padding-top: 18px !important;
+            padding-bottom: 72px !important;
+            max-width: 100% !important;
+        }
+
+        .exam-wrapper {
+            padding: 16px 12px 60px 12px !important;
+        }
+
+        .exam-step-card {
+            padding: 18px 14px !important;
+            margin-bottom: 20px !important;
+            border-radius: 10px !important;
+        }
+
+        .symptom-card {
+            padding: 16px 14px !important;
+            margin-bottom: 16px !important;
+        }
+
+        .instrument-card-dark,
+        .instrument-card-light {
+            padding: 20px 16px !important;
+            border-radius: 12px !important;
+        }
+
+        /* Responsive Metric Cards */
+        div[data-testid="stMetric"] {
+            background: #172223 !important;
+            padding: 12px 14px !important;
+            border-radius: 8px !important;
+            border: 1px solid #283738 !important;
+            margin-bottom: 8px !important;
+        }
+        div[data-testid="stMetricLabel"] p {
+            font-size: 11px !important;
+        }
+        div[data-testid="stMetricValue"] div {
+            font-size: 20px !important;
+        }
+
+        /* Streamlit columns stack cleanly on small mobile viewports */
+        [data-testid="column"] {
+            min-width: 100% !important;
+            flex: 1 1 100% !important;
+            margin-bottom: 10px !important;
+        }
+
+        /* Touch-friendly buttons and inputs */
+        div.stButton > button {
+            width: 100% !important;
+            min-height: 48px !important;
+            font-size: 13px !important;
+            padding: 10px 14px !important;
+        }
+
+        /* Responsive table wrapping */
+        div[data-testid="stTable"],
+        div[data-testid="stDataFrame"] {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+        }
+
+        /* Form PM-5372 On-Screen Preview Mobile Adjustments */
+        .pm-preview-box {
+            padding: 14px !important;
+        }
+        .pm-header-row {
+            flex-direction: column !important;
+            align-items: center !important;
+            text-align: center !important;
+        }
+        .pm-particulars-grid {
+            grid-template-columns: 1fr !important;
+            gap: 8px !important;
+        }
+        .pm-opinion-subgrid {
+            grid-template-columns: 1fr !important;
+        }
+
+        /* Matplotlib & Plotly full viewport scaling */
+        div[data-testid="stPlotlyChart"],
+        div[data-testid="stImage"] img,
+        div[data-testid="stArrowVegaLiteChart"] {
+            max-width: 100% !important;
+            overflow-x: auto !important;
+        }
+    }
+
+    /* Small Phone adjustments (< 480px) */
+    @media (max-width: 480px) {
+        h1 { font-size: 24px !important; line-height: 1.25 !important; }
+        h2 { font-size: 20px !important; line-height: 1.3 !important; }
+        h3 { font-size: 17px !important; line-height: 1.35 !important; }
+        .mono-tag { font-size: 10px !important; }
+    }
 </style>
 """
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
@@ -1284,9 +1391,7 @@ if st.session_state["view"] == "landing":
                     </span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 20px;">
-                    <a href="#platform" style="font-family: var(--font-mono); font-size: 13px; color: var(--color-graphite); text-decoration: none; transition: color 0.15s ease;">01 PLATFORM</a>
-                    <a href="#succession" style="font-family: var(--font-mono); font-size: 13px; color: var(--color-graphite); text-decoration: none; transition: color 0.15s ease;">02 SUCCESSION</a>
-                    <a href="#dossier" style="font-family: var(--font-mono); font-size: 13px; color: var(--color-graphite); text-decoration: none; transition: color 0.15s ease;">03 CASE DOSSIER</a>
+                    
                     {officer_nav_pill}
                     <a href="?view=examination{auth_q}" target="_self" style="font-family: var(--font-mono); font-size: 12px; color: var(--color-paper); text-decoration: none; border: 1px solid var(--color-graphite); padding: 8px 16px; border-radius: 6px; letter-spacing: -0.02em; background: rgba(255, 255, 255, 0.03); transition: all 0.15s ease;">EXAMINATION ROOM &rarr;</a>
                 </div>
@@ -2623,22 +2728,22 @@ elif st.session_state["view"] == "examination":
 
             # On-screen preview of Form PM-5372
             render_clean_html(f"""
-            <div style="border: 1px solid var(--color-graphite); padding: 24px; background-color: #1a2425; color: var(--color-paper); border-radius: 12px; margin-bottom: 24px;">
-                <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--color-graphite); padding-bottom: 14px; margin-bottom: 16px;">
-                    <div style="flex: 1;">
-                        <div class="mono-tag" style="color: var(--color-bioluminescent-lime);">DEPARTMENT OF FORENSIC MEDICINE & POLICE MORGUE</div>
-                        <div style="font-size: 19px; color: var(--color-paper); margin: 6px 0;">POST MORTEM EXAMINATION REPORT • FORM NO. PM-5372</div>
-                        <div style="font-family: var(--font-mono); font-size: 12px; color: var(--color-graphite);">
+            <div class="pm-preview-box" style="border: 1px solid var(--color-graphite); padding: 20px; background-color: #1a2425; color: var(--color-paper); border-radius: 12px; margin-bottom: 24px;">
+                <div class="pm-header-row" style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--color-graphite); padding-bottom: 14px; margin-bottom: 16px; flex-wrap: wrap; gap: 16px;">
+                    <div style="flex: 1; min-width: 240px;">
+                        <div class="mono-tag" style="color: var(--color-bioluminescent-lime); font-size: 10px;">DEPARTMENT OF FORENSIC MEDICINE & POLICE MORGUE</div>
+                        <div style="font-size: 18px; font-weight: 600; color: var(--color-paper); margin: 6px 0;">POST MORTEM EXAMINATION REPORT • FORM NO. PM-5372</div>
+                        <div style="font-family: var(--font-mono); font-size: 11.5px; color: var(--color-graphite); line-height: 1.4;">
                             REPORT NO: {case_info.get('pm_report_no')} &bull; P.S.: {case_info.get('police_station')} &bull; INQUEST: {case_info.get('inquest_no')}
                         </div>
                     </div>
-                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; background: #ffffff; padding: 10px 12px; border-radius: 8px; border: 2px solid var(--color-bioluminescent-lime); margin-left: 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.35);">
-                        <img src="data:image/svg+xml;base64,{qr_b64}" width="116" height="116" style="display: block;" alt="Forensic QR Verification Seal" />
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; background: #ffffff; padding: 10px 12px; border-radius: 8px; border: 2px solid var(--color-bioluminescent-lime); box-shadow: 0 4px 16px rgba(0,0,0,0.35); align-self: center;">
+                        <img src="data:image/svg+xml;base64,{qr_b64}" width="116" height="116" style="display: block; max-width: 100%; height: auto;" alt="Forensic QR Verification Seal" />
                         <span style="font-family: var(--font-mono); font-size: 8px; font-weight: 700; color: #000000; letter-spacing: 0.06em; margin-top: 5px;">SCAN TO AUTHENTICATE</span>
                     </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; font-size: 13px; background-color: #222f30; padding: 14px; border-radius: 8px;">
+                <div class="pm-particulars-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px; font-size: 12.5px; background-color: #222f30; padding: 14px; border-radius: 8px;">
                     <div><b>Deceased Reference:</b> {case_info.get('deceased_name')}</div>
                     <div><b>Age / Sex:</b> {case_info.get('age')} / {case_info.get('sex')}</div>
                     <div><b>Swab Location:</b> {case_info.get('sample_site')}</div>
@@ -2647,18 +2752,18 @@ elif st.session_state["view"] == "examination":
                     <div><b>Specimen Status:</b> <span style="color: var(--color-bioluminescent-lime);">SATISFACTORY (Adequate DNA)</span></div>
                 </div>
 
-                <div style="background-color: #273637; border-left: 3px solid var(--color-bioluminescent-lime); padding: 16px; border-radius: 0 8px 8px 0; margin-bottom: 16px;">
+                <div style="background-color: #273637; border-left: 3px solid var(--color-bioluminescent-lime); padding: 14px 16px; border-radius: 0 8px 8px 0; margin-bottom: 16px;">
                     <div class="mono-tag" style="color: var(--color-bioluminescent-lime); margin-bottom: 6px;">MEDICO-LEGAL OPINION: TIME & CAUSE OF DEATH</div>
-                    <div style="font-size: 17px; color: var(--color-paper); margin-bottom: 4px;">
+                    <div style="font-size: 16px; color: var(--color-paper); margin-bottom: 4px;">
                         <b>Estimated Time Elapsed:</b> {p_est:.1f} Days (approx. {p_est*24.0:.0f} Hours prior to examination)
                     </div>
-                    <div style="font-size: 14px; color: #dbeafe; margin-bottom: 4px;">
+                    <div style="font-size: 13.5px; color: #dbeafe; margin-bottom: 4px;">
                         <b>Probable Forensic Window:</b> {p_low:.1f} to {p_high:.1f} Days prior to recovery
                     </div>
-                    <div style="font-size: 13px; color: var(--color-graphite); margin-bottom: 12px;">
+                    <div style="font-size: 12.5px; color: var(--color-graphite); margin-bottom: 12px;">
                         <b>Calculated Calendar Date of Death:</b> {dt_earliest.strftime('%d/%m/%Y')} to {dt_latest.strftime('%d/%m/%Y')} (Most Probable: {dt_most_likely.strftime('%d/%m/%Y')})
                     </div>
-                    <div style="border-top: 1px solid #384d4e; padding-top: 10px; display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; font-size: 13px;">
+                    <div class="pm-opinion-subgrid" style="border-top: 1px solid #384d4e; padding-top: 10px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 12.5px;">
                         <div>
                             <span class="mono-tag" style="font-size: 10px; color: #f87171;">PROVISIONAL CAUSE OF DEATH</span>
                             <div style="color: var(--color-paper); font-weight: 500; margin-top: 3px;">{case_info.get('cause_of_death', 'Pending Inquest')}</div>
@@ -2668,8 +2773,8 @@ elif st.session_state["view"] == "examination":
                             <div style="color: #cbd5e1; margin-top: 3px;">{case_info.get('manner_of_death', 'Matter under judicial inquiry')}</div>
                         </div>
                     </div>
-                    <div style="border-top: 1px solid #33494a; padding-top: 8px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; font-family: var(--font-mono); font-size: 11px; color: var(--color-graphite);">
-                        <span><b>Digital Evidence Digest (SHA-256):</b> <code style="color: var(--color-bioluminescent-lime);">{evidence_hash[:32]}...</code></span>
+                    <div style="border-top: 1px solid #33494a; padding-top: 8px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; font-family: var(--font-mono); font-size: 10.5px; color: var(--color-graphite); flex-wrap: wrap; gap: 6px;">
+                        <span><b>Digital Evidence Digest (SHA-256):</b> <code style="color: var(--color-bioluminescent-lime); word-break: break-all;">{evidence_hash[:24]}...</code></span>
                         <span style="color: #6ee7b7;">TAMPER-EVIDENT QR VERIFIED</span>
                     </div>
                 </div>
@@ -2719,87 +2824,57 @@ elif st.session_state["view"] == "examination":
 
                 render_clean_html(f"""
                 <div style="background: #172324; border: 1.5px solid #f59e0b; border-radius: 12px; padding: 22px; margin-top: 14px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
-                    <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #2d3d3e; padding-bottom: 14px; margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #2d3d3e; padding-bottom: 14px; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
                         <div style="display: flex; align-items: center; gap: 12px;">
-                            <div class="mono-tag" style="color: #f59e0b; font-size: 11px; font-weight: 700; border: 1px solid #f59e0b; padding: 2px 8px; border-radius: 4px;">SEC-LOCK</div>
+                            <div class="mono-tag" style="color: #f59e0b; font-size: 11px; font-weight: 700; border: 1px solid #f59e0b; padding: 2px 8px; border-radius: 4px;">MANDATORY QR AUTH</div>
                             <div>
-                                <div class="mono-tag" style="color: #f59e0b; font-size: 10px;">CHAIN-OF-CUSTODY VERIFICATION PROTOCOL</div>
-                                <div style="font-size: 17px; font-weight: 600; color: #ffffff;">AUTHENTICATION REQUIRED TO DOWNLOAD REPORT</div>
+                                <div class="mono-tag" style="color: #f59e0b; font-size: 10px;">CHAIN-OF-CUSTODY AUDIT PROTOCOL</div>
+                                <div style="font-size: 17px; font-weight: 600; color: #ffffff;">SCAN PHYSICAL QR CODE TO RELEASE DOSSIER</div>
                             </div>
                         </div>
                         <span style="font-family: var(--font-mono); font-size: 11px; background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid #f59e0b; padding: 4px 12px; border-radius: 9999px;">
                             DOWNLOAD LOCKED
                         </span>
                     </div>
-                    <div style="font-size: 13px; color: #cbd5e1; line-line: 1.55; margin-bottom: 16px;">
-                        Post-mortem records (Form PM-5372) contain sensitive medico-legal inquest findings. 
-                        In accordance with chain-of-custody protocols, an authorized medical examiner or investigating officer must <b>authenticate via the QR code portal</b> using their registered Firebase credentials before the dossier can be released.
+                    <div style="font-size: 13.5px; color: #cbd5e1; line-height: 1.6; margin-bottom: 14px;">
+                        In accordance with statutory chain-of-custody protocols, direct browser navigation is disabled. 
+                        An authorized medical examiner or investigating officer must <b>compulsorily scan the physical QR code seal</b> using a mobile camera or departmental device to verify identity and generate the one-time workstation release passcode.
                     </div>
-                    <div style="font-size: 11px; color: #94a3b8; line-height: 1.4; margin-bottom: 12px; font-style: italic;">
-                        &#9888; This report is generated for educational and research demonstration purposes only. It does not constitute an official medico-legal document.
-                    </div>
-                    <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
-                        <a href="{qr_url}" target="_blank" style="text-decoration: none;">
-                            <div style="background: var(--color-bioluminescent-lime); color: #000000; font-family: var(--font-mono); font-weight: 700; font-size: 12px; padding: 10px 18px; border-radius: 6px; display: inline-flex; align-items: center; gap: 8px;">
-                                OPEN MOBILE VERIFICATION PORTAL &rarr;
-                            </div>
-                        </a>
-                        <span style="font-size: 12px; color: var(--color-graphite);">or scan the QR code above with any mobile camera</span>
+                    <div style="display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.3); border: 1px dashed rgba(245, 158, 11, 0.4); padding: 10px 14px; border-radius: 8px;">
+                        <span style="font-size: 18px;">📱</span>
+                        <span style="font-size: 12.5px; color: #94a3b8;">
+                            Scan the <b>Forensic QR Verification Seal</b> on Form PM-5372 with your mobile device. Upon credential verification, your screen will display the synchronized 6-digit release passcode.
+                        </span>
                     </div>
                 </div>
                 """)
 
-                lock_col1, lock_col2 = st.columns([1.1, 1.0])
-                with lock_col1:
-                    st.markdown(
-                        '<div class="mono-tag" style="margin-bottom: 6px;">METHOD 1: ENTER 6-DIGIT RELEASE PASSCODE</div>', unsafe_allow_html=True)
+                st.markdown(
+                    '<div class="mono-tag" style="margin-bottom: 8px;">ENTER 6-DIGIT MOBILE WORKSTATION RELEASE PASSCODE:</div>', unsafe_allow_html=True)
+                pass_col1, pass_col2, pass_col3 = st.columns([2.5, 1.8, 1.0])
+                with pass_col1:
                     pass_in = st.text_input(
                         "Enter Release Passcode",
-                        placeholder="e.g. 849201 or NC-849201 (shown on mobile screen)",
+                        placeholder="e.g. 849201 or NC-849201 (from mobile screen)",
                         key=f"passcode_input_{clean_pm}",
                         label_visibility="collapsed"
                     )
-                    btn_v_col1, btn_v_col2 = st.columns([1.6, 1.0])
-                    with btn_v_col1:
-                        if st.button("VERIFY PASSCODE & RELEASE REPORT", use_container_width=True, key=f"btn_unlock_{clean_pm}"):
-                            if verify_release_passcode(clean_pm, pass_in, seed=case_seed):
-                                st.session_state["unlocked_reports"].add(pm_no)
-                                st.session_state["unlocked_reports"].add(
-                                    clean_pm)
-                                st.success(
-                                    "Workstation Release Code Accepted. PDF Dossier released.")
-                                st.rerun()
-                            else:
-                                st.error(
-                                    "Invalid release passcode. Please authenticate via the QR code on your mobile device first.")
-                    with btn_v_col2:
-                        if st.button("↻ REFRESH CODE", use_container_width=True, key=f"btn_refresh_{clean_pm}"):
-                            st.session_state["case_passcode_seeds"][clean_pm] = secrets.token_hex(
-                                4)
+                with pass_col2:
+                    if st.button("VERIFY PASSCODE & RELEASE REPORT", type="primary", use_container_width=True, key=f"btn_unlock_{clean_pm}"):
+                        if verify_release_passcode(clean_pm, pass_in, seed=case_seed):
+                            st.session_state["unlocked_reports"].add(pm_no)
+                            st.session_state["unlocked_reports"].add(clean_pm)
+                            st.success(
+                                "Mobile Workstation Release Code Confirmed. Forensic Dossier Released.")
                             st.rerun()
-
-                with lock_col2:
-                    st.markdown(
-                        '<div class="mono-tag" style="margin-bottom: 6px;">METHOD 2: DIRECT TERMINAL AUTHENTICATION</div>', unsafe_allow_html=True)
-                    with st.expander("Examiner Credentials Sign-In", expanded=False):
-                        dir_email = st.text_input(
-                            "Examiner Email", placeholder="coroner@necrotrace.gov", key="dir_email")
-                        dir_pass = st.text_input(
-                            "Password", type="password", key="dir_pass")
-                        if st.button("VERIFY & SIGN IN", use_container_width=True, key="btn_direct_signin"):
-                            with st.spinner("Authenticating & fetching profile from Cloud Firestore..."):
-                                auth_res = sign_in_officer(dir_email, dir_pass)
-                            if auth_res.get("success"):
-                                st.session_state["authenticated_officer"] = auth_res.get(
-                                    "officer_info")
-                                st.session_state["unlocked_reports"].add(pm_no)
-                                st.session_state["unlocked_reports"].add(
-                                    clean_pm)
-                                st.success(
-                                    f"Officer Verified via Cloud Firestore: {auth_res.get('officer_info', {}).get('name')}")
-                                st.rerun()
-                            else:
-                                st.error(auth_res.get('message'))
+                        else:
+                            st.error(
+                                "Invalid release passcode. Please scan the QR code with your mobile device to generate an authentic code.")
+                with pass_col3:
+                    if st.button("↻ REFRESH", use_container_width=True, key=f"btn_refresh_{clean_pm}"):
+                        st.session_state["case_passcode_seeds"][clean_pm] = secrets.token_hex(
+                            4)
+                        st.rerun()
 
             else:
                 officer = st.session_state.get("authenticated_officer") or {}
@@ -2844,20 +2919,41 @@ elif st.session_state["view"] == "examination":
 # VIEW 3: OFFICIAL MEDICO-LEGAL DIGITAL VERIFICATION PORTAL
 # =============================================================================
 elif st.session_state["view"] == "verify":
-    # Extract query params or fallback to active session particulars
-    case_param = st.query_params.get("case", "PM-619-2026").replace("-", " / ")
-    inq_param = st.query_params.get("inq", "14-2026").replace("-", " / ")
+    # Mandatory QR scan parameter guard: Prevents manual URL manipulation
+    has_qr_params = bool(st.query_params.get(
+        "seed") and st.query_params.get("case"))
+    if not has_qr_params:
+        render_clean_html("""
+        <div style="background: #172324; border: 1.5px solid #ef4444; border-radius: 12px; padding: 28px; margin: 40px auto; max-width: 640px; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,0.4);">
+            <div style="font-size: 32px; margin-bottom: 12px;">🚫</div>
+            <div class="mono-tag" style="color: #f87171; font-size: 11px; font-weight: 700;">CHAIN-OF-CUSTODY SECURITY ENFORCEMENT</div>
+            <div style="font-size: 20px; font-weight: 600; color: #ffffff; margin: 8px 0 14px 0;">MANDATORY QR SCAN REQUIRED</div>
+            <div style="font-size: 13.5px; color: #cbd5e1; line-height: 1.6; margin-bottom: 20px;">
+                Direct browser access to this verification endpoint is prohibited under evidentiary audit rules. 
+                You must <b>compulsorily scan the physical QR code seal</b> displayed on the official Form PM-5372 report or mortuary display using a mobile device camera.
+            </div>
+            <div style="background: #0d1516; border: 1px dashed #33494a; border-radius: 8px; padding: 12px; font-size: 12px; color: #94a3b8; font-family: var(--font-mono);">
+                SECURITY ERROR: Missing cryptographically signed session seed token.
+            </div>
+        </div>
+        """)
+        if st.button("← RETURN TO APPLICATION HOME", use_container_width=True, key="btn_qr_blocked_home"):
+            st.session_state["view"] = "landing"
+            st.query_params.clear()
+            st.query_params["view"] = "landing"
+            st.rerun()
+        st.stop()
+
+    # Extract query params from authentic QR scan
+    case_param = st.query_params.get("case", "").replace("-", " / ")
+    inq_param = st.query_params.get("inq", "").replace("-", " / ")
     pmi_param = st.query_params.get("pmi", "6.8d").replace("d", " Days")
     hash_param = st.query_params.get("hash", "7f83b165ff29a1b4")
-    ps_param = st.query_params.get("ps", "New Township Police Station")
-    dec_param = st.query_params.get(
-        "dec", "Unidentified Individual (Ref: Unknown #42)")
-    doc_param = st.query_params.get(
-        "doc", "Dr. Tanish Walture, M.D. (WBMC / 45826)")
-    cod_param = st.query_params.get(
-        "cod", "ASPHYXIA AS A RESULT OF CONSTRICTION OF NECK (PENDING TOXICOLOGY & HISTOLOGY)")
-    mod_param = st.query_params.get(
-        "mod", "Matter under judicial inquiry / Forensic Inquest")
+    ps_param = st.query_params.get("ps", "Police Inquest Division")
+    dec_param = st.query_params.get("dec", "Case Subject")
+    doc_param = st.query_params.get("doc", "Medical Examiner")
+    cod_param = st.query_params.get("cod", "Under active inquest")
+    mod_param = st.query_params.get("mod", "Matter under judicial inquiry")
 
     # If active session state has case particulars, prioritize them
     if st.session_state.get("case_particulars"):
@@ -3055,7 +3151,7 @@ elif st.session_state["view"] == "verify":
                     CREDENTIALS VALIDATED
                 </span>
             </div>
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; font-size: 12px; color: #d1fae5; margin-bottom: 18px; background: rgba(0, 0, 0, 0.25); padding: 12px; border-radius: 8px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; font-size: 12px; color: #d1fae5; margin-bottom: 18px; background: rgba(0, 0, 0, 0.25); padding: 12px; border-radius: 8px;">
                 <div><b>Designation:</b> {off_role}</div>
                 <div><b>Badge / Registration:</b> <code>{off_badge}</code></div>
                 <div><b>Posting:</b> {off_station}</div>
@@ -3168,7 +3264,7 @@ elif st.session_state["view"] == "verify":
         </div>
 
         <!-- Case Identification Metadata -->
-        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; background: #202e2f; padding: 16px; border-radius: 8px; margin-bottom: 20px; font-size: 13px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; background: #202e2f; padding: 16px; border-radius: 8px; margin-bottom: 20px; font-size: 13px;">
             <div>
                 <div class="mono-tag" style="font-size: 10px; color: var(--color-graphite);">POST-MORTEM REPORT NO:</div>
                 <div style="font-size: 15px; font-weight: 600; color: #ffffff; margin-top: 2px;">{case_param}</div>
@@ -3196,7 +3292,7 @@ elif st.session_state["view"] == "verify":
             <div style="font-size: 13px; color: #cbd5e1; margin-bottom: 12px; line-height: 1.4;">
                 Derived via calibrated metagenomic succession bioindicators (16S rRNA taxonomic profiling & Quantile XGBoost pinball loss optimization) concordant with macroscopic autopsy signs under prevailing scene ambient factors.
             </div>
-            <div style="border-top: 1px solid #364b4d; padding-top: 12px; display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; font-size: 13px;">
+            <div style="border-top: 1px solid #364b4d; padding-top: 12px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; font-size: 13px;">
                 <div>
                     <span class="mono-tag" style="font-size: 10px; color: #f87171;">PROVISIONAL CAUSE OF DEATH</span>
                     <div style="color: #ffffff; font-weight: 500; margin-top: 3px;">{cod_param}</div>
@@ -3638,7 +3734,6 @@ elif st.session_state["view"] == "404":
             <div style="display: flex; flex-wrap: wrap; gap: 10px 18px; font-size: 13px;">
                 <a href="?view=landing" style="color: #cef79e; text-decoration: none;">&bull; Platform Overview</a>
                 <a href="?view=examination" style="color: #cef79e; text-decoration: none;">&bull; Examination Suite</a>
-                <a href="?view=verify" style="color: #cef79e; text-decoration: none;">&bull; Verification Portal</a>
                 <a href="?view=privacy" style="color: #cef79e; text-decoration: none;">&bull; Privacy Policy</a>
                 <a href="?view=terms" style="color: #cef79e; text-decoration: none;">&bull; Terms &amp; Conditions</a>
                 <a href="?view=cookies" style="color: #cef79e; text-decoration: none;">&bull; Cookie Policy</a>
