@@ -9,7 +9,7 @@ and definitive Postmortem Interval (PMI) time-of-death windows.
 import io
 import hashlib
 from datetime import datetime, timezone, timedelta
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
@@ -98,55 +98,59 @@ def generate_forensic_timeline_chart(
         xmin=lower_bound_days,
         xmax=upper_bound_days,
         color="#1e3a8a",
-        linewidth=3.5
+        linewidth=2.5,
+        alpha=0.9
     )
 
-    # Boundary tick caps
-    ax.plot([lower_bound_days, lower_bound_days], [-0.18, 0.18], color="#1e3a8a", linewidth=2.0)
-    ax.plot([upper_bound_days, upper_bound_days], [-0.18, 0.18], color="#1e3a8a", linewidth=2.0)
-
-    # Most Likely Estimate point
-    ax.scatter(
-        [predicted_pmi_days],
-        [0],
+    # Marker for Predicted PMI
+    ax.plot(
+        predicted_pmi_days,
+        0,
+        marker="o",
+        markersize=9,
         color="#b91c1c",
-        s=120,
-        zorder=5,
+        markeredgecolor="#ffffff",
+        markeredgewidth=1.8,
         label=f"Most Likely PMI: {predicted_pmi_days:.1f} Days"
     )
 
-    # Clean textual annotations
-    ax.text(
-        predicted_pmi_days,
-        0.22,
-        f"Estimated: {predicted_pmi_days:.1f} Days ({predicted_pmi_days*24.0:.0f} hrs)",
-        color="#b91c1c",
+    # Annotations
+    ax.annotate(
+        f"{predicted_pmi_days:.1f} Days\n({predicted_pmi_days*24.0:.0f} Hours)",
+        xy=(predicted_pmi_days, 0),
+        xytext=(predicted_pmi_days, 0.16),
+        ha="center",
+        va="bottom",
+        fontsize=8.5,
         fontweight="bold",
-        ha="center",
-        fontsize=8.5
+        color="#991b1b",
+        arrowprops=dict(arrowstyle="->", color="#991b1b", lw=1.2)
     )
-    ax.text(
-        lower_bound_days,
-        -0.30,
+
+    ax.annotate(
         f"Lower: {lower_bound_days:.1f}d",
-        color="#1e3a8a",
+        xy=(lower_bound_days, -0.1),
+        xytext=(lower_bound_days, -0.28),
         ha="center",
-        fontsize=8,
-        fontweight="bold"
-    )
-    ax.text(
-        upper_bound_days,
-        -0.30,
-        f"Upper: {upper_bound_days:.1f}d",
+        fontsize=7,
         color="#1e3a8a",
-        ha="center",
-        fontsize=8,
         fontweight="bold"
     )
 
-    ax.set_xlabel("Time Elapsed Since Death (Days)", fontsize=8, fontweight="bold", color="#1e293b")
+    ax.annotate(
+        f"Upper: {upper_bound_days:.1f}d",
+        xy=(upper_bound_days, -0.1),
+        xytext=(upper_bound_days, -0.28),
+        ha="center",
+        fontsize=7,
+        color="#1e3a8a",
+        fontweight="bold"
+    )
+
+    ax.set_xlabel("Elapsed Postmortem Interval (Days Since Biological Cessation)", fontsize=8, labelpad=2, fontweight="bold", color="#1e293b")
     ax.set_yticks([])
-    ax.grid(axis="x", linestyle=":", alpha=0.6, color="#94a3b8")
+    ax.grid(axis="x", linestyle="--", alpha=0.5, color="#cbd5e1")
+    ax.tick_params(axis="x", labelsize=7.5, colors="#334155")
     ax.legend(loc="upper right", frameon=True, fontsize=7.5, facecolor="#ffffff", edgecolor="#cbd5e1")
 
     for spine in ["top", "left", "right"]:
@@ -167,11 +171,14 @@ def generate_forensic_pdf(
     case_metadata: Dict[str, Any],
     pmi_findings: Dict[str, Any],
     qc_metrics: Dict[str, Any],
-    output_path: Optional[str] = None
+    output_path: Optional[str] = None,
+    shap_plot_buf: Optional[io.BytesIO] = None,
+    shap_narrative: Optional[List[str]] = None,
 ) -> bytes:
     """
     Generate an authentic, court-admissible Post Mortem Examination Report
     following the structure of official medico-legal autopsy reports (Form 5372).
+    Optionally incorporates SHAP feature attribution plot and forensic audit narrative.
     """
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -663,7 +670,39 @@ def generate_forensic_pdf(
         ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
     ]))
     story.append(t_spec)
-    story.append(Spacer(1, 5))
+    story.append(Spacer(1, 4))
+
+    # -------------------------------------------------------------
+    # 8b. EXPLAINABLE AI & FEATURE ATTRIBUTION AUDIT (SHAP)
+    # -------------------------------------------------------------
+    if shap_plot_buf is not None:
+        story.append(Table([[Paragraph("<b>EXPLAINABLE AI &amp; FEATURE ATTRIBUTION AUDIT (SHAPLEY ATTRIBUTION)</b>", section_banner)]],
+                           colWidths=[7.5 * inch],
+                           style=[("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#e0f2fe")),
+                                  ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#0369a1")),
+                                  ("TOPPADDING", (0, 0), (-1, -1), 1),
+                                  ("BOTTOMPADDING", (0, 0), (-1, -1), 1)]))
+
+        shap_img = Image(shap_plot_buf, width=7.4 * inch, height=2.4 * inch)
+        story.append(shap_img)
+        story.append(Spacer(1, 3))
+
+        if shap_narrative:
+            bullet_paras = [
+                Paragraph(f"&bull; {pt}", ParagraphStyle("ShapBullet", parent=field_val, fontSize=6.5, leading=8.5))
+                for pt in shap_narrative[:4]
+            ]
+            t_shap_notes = Table([[b] for b in bullet_paras], colWidths=[7.5 * inch])
+            t_shap_notes.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8fafc")),
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
+                ("TOPPADDING", (0, 0), (-1, -1), 1.5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5),
+                ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ]))
+            story.append(t_shap_notes)
+            story.append(Spacer(1, 4))
 
     # -------------------------------------------------------------
     # 9. MEDICAL OFFICER SIGNATURE, SEAL & CERTIFICATION

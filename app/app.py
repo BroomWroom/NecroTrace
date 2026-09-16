@@ -7,6 +7,33 @@ paired with an authoritative Medical Examiner Diagnostic Triage workflow.
 Developed by Team BroomWroom (Lead: Tanish Walture).
 """
 
+from src.auth import (
+    get_firebase_config,
+    is_firebase_configured,
+    check_email_registered_in_firebase,
+    sign_in_officer,
+    register_officer,
+    fetch_officer_from_firestore,
+    get_active_officer_session,
+    set_active_officer_session,
+    clear_active_officer_session,
+    generate_release_passcode,
+    verify_release_passcode,
+    save_firebase_config,
+    test_firebase_connection,
+    DEMO_REGISTERED_OFFICERS,
+)
+from src.explainability import (
+    get_tree_explainer,
+    explain_sample_prediction,
+    generate_attribution_plot,
+    generate_attribution_plot_bytes,
+)
+from src.reporting.pdf_generator import (
+    generate_forensic_pdf,
+    compute_sha256_hash,
+    generate_qr_code_svg,
+)
 from datetime import datetime, timezone, timedelta
 import time
 import secrets
@@ -28,65 +55,13 @@ from src.triage import (
 )
 import sys
 import importlib
+import src.reporting.pdf_generator as pdf_gen
+importlib.reload(pdf_gen)
 
-# Dynamic import with hot-reload invalidation for Streamlit Cloud environments
-try:
-    from src.reporting.pdf_generator import (
-        generate_forensic_pdf,
-        compute_sha256_hash,
-        generate_qr_code_svg,
-    )
-except (ImportError, AttributeError):
-    for mod_name in list(sys.modules.keys()):
-        if mod_name.startswith("src.reporting") or mod_name == "src.report":
-            sys.modules.pop(mod_name, None)
-    try:
-        from src.reporting.pdf_generator import (
-            generate_forensic_pdf,
-            compute_sha256_hash,
-            generate_qr_code_svg,
-        )
-    except (ImportError, AttributeError):
-        from src.reporting.pdf_generator import (
-            generate_forensic_pdf,
-            compute_sha256_hash,
-        )
-
-        def generate_qr_code_svg(payload: str, size: float = 130.0) -> str:
-            """Self-contained fallback SVG QR generator ensuring zero-crash resilience."""
-            from reportlab.graphics.barcode import qr
-            from reportlab.graphics.shapes import Drawing, Rect
-            from reportlab.graphics import renderSVG
-            from reportlab.lib import colors
-            d = Drawing(size, size)
-            d.add(Rect(0, 0, size, size, fillColor=colors.white, strokeColor=None))
-            qr_widget = qr.QrCodeWidget(payload)
-            qr_widget.barLevel = "M"
-            qr_widget.barBorder = 2
-            qr_widget.barWidth = size
-            qr_widget.barHeight = size
-            d.add(qr_widget)
-            return renderSVG.drawToString(d)
 
 # -----------------------------------------------------------------------------
 # AUTHENTICATION & FIREBASE GATEWAY
 # -----------------------------------------------------------------------------
-from src.auth import (
-    get_firebase_config,
-    is_firebase_configured,
-    check_email_registered_in_firebase,
-    sign_in_officer,
-    register_officer,
-    fetch_officer_from_firestore,
-    get_active_officer_session,
-    set_active_officer_session,
-    clear_active_officer_session,
-    generate_release_passcode,
-    verify_release_passcode,
-    save_firebase_config,
-    test_firebase_connection,
-    DEMO_REGISTERED_OFFICERS,
-)
 
 # -----------------------------------------------------------------------------
 # 1. PAGE CONFIGURATION
@@ -1976,7 +1951,7 @@ elif st.session_state["view"] == "examination":
     officer_name_short = cur_officer.get("name", "Examiner")
     officer_badge_short = cur_officer.get("badge", "CFS")
     nav_exam_html = f"""
-    <a href="#examination-form" class="skip-link">Skip to autopsy form</a>
+    
     <header style="width: 100%; border-bottom: 1px solid var(--color-graphite); padding: 12px 0 20px 0; margin-bottom: 28px;">
         <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
             <div style="display: flex; align-items: center; gap: 12px;">
@@ -1984,9 +1959,7 @@ elif st.session_state["view"] == "examination":
                 <span style="font-family: var(--font-mono); font-size: 13px; color: var(--color-paper); font-weight: 600; letter-spacing: 0.04em;">
                     NECROTRACE <span style="color: var(--color-graphite);">//</span> EXAMINATION ROOM
                 </span>
-                <span style="font-family: var(--font-mono); font-size: 11px; color: var(--color-bioluminescent-lime); letter-spacing: 0.03em;">
-                    CLINICAL TRIAGE ACTIVE
-                </span>
+                
             </div>
             <div style="display: flex; align-items: center; gap: 10px;">
                 <span style="font-family: var(--font-mono); font-size: 11px; color: #6ee7b7; background: rgba(6, 78, 59, 0.55); border: 1px solid #10b981; padding: 5px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px;">
@@ -2418,6 +2391,7 @@ elif st.session_state["view"] == "examination":
                         ambient_temp_c=ambient_temp,
                         humidity_pct=humidity_val,
                     )
+                    st.session_state["features_df"] = features
 
                     preds = model.predict_intervals(features)
                     p_est = float(preds["predicted_pmi"].values[0])
@@ -2567,6 +2541,51 @@ elif st.session_state["view"] == "examination":
             st.plotly_chart(fig_pmi, use_container_width=True)
 
             # ---------------------------------------------------------
+            # STEP 4B: SHAP ALGORITHMIC EXPLAINABILITY & BIOINDICATOR ATTRIBUTION
+            # ---------------------------------------------------------
+            features_input = st.session_state.get("features_df")
+            if features_input is None and model is not None:
+                features_input = synthesize_abundance_profile(
+                    confirmed_taxa=st.session_state.get("confirmed_taxa", []),
+                    feature_schema=model.feature_names_,
+                    ambient_temp_c=temp_now,
+                    humidity_pct=pmi.get("humidity_pct", 65.0),
+                )
+                st.session_state["features_df"] = features_input
+
+            if features_input is not None and model is not None:
+                with st.expander("Algorithmic Explainability: Microbial Clock Attribution (SHAP)", expanded=True):
+                    try:
+                        shap_data = explain_sample_prediction(
+                            model, features_input, top_n=8)
+                        st.session_state["shap_results"] = shap_data
+
+                        st.markdown(
+                            f"""
+                            <div style="font-size: 13.5px; color: #c9cbbe; margin-bottom: 12px; line-height: 1.5;">
+                                <b>TreeSHAP Non-Black-Box Forensic Decomposition:</b> Baseline model expectation 
+                                <code>E[f(X)] = {shap_data['base_value']:.2f} days</code>. Individual sample prediction 
+                                <code>f(x) = {shap_data['predicted_pmi']:.2f} days</code>. The bioindicators below represent 
+                                the primary microbial succession signals shifting the postmortem interval.
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
+
+                        fig_shap = generate_attribution_plot(
+                            shap_data, top_n=8, dark_theme=True)
+                        st.pyplot(fig_shap)
+
+                        st.markdown(
+                            "<div style='margin-top: 14px; font-weight: 600; color: #e2e8f0; font-size: 13px;'>Bioindicator Attribution Narrative (Top Drivers):</div>", unsafe_allow_html=True)
+                        for bullet in shap_data["narrative_bullet_points"]:
+                            st.markdown(
+                                f"<div style='font-size: 12.5px; color: #94a3b8; margin-bottom: 4px;'>• {bullet}</div>", unsafe_allow_html=True)
+                    except Exception as ex_err:
+                        st.warning(
+                            f"SHAP attribution calculation unavailable: {ex_err}")
+
+            # ---------------------------------------------------------
             # STEP 5: OFFICIAL POST-MORTEM REPORT & PDF EXPORT
             # ---------------------------------------------------------
             st.markdown(
@@ -2665,11 +2684,25 @@ elif st.session_state["view"] == "examination":
                 "dropped_taxa": 0,
             }
 
+            shap_exp = st.session_state.get("shap_results")
+            shap_buf = None
+            shap_narrative_list = None
+            if shap_exp:
+                try:
+                    shap_buf = generate_attribution_plot_bytes(
+                        shap_exp, top_n=8)
+                    shap_narrative_list = shap_exp.get(
+                        "narrative_bullet_points", [])
+                except Exception:
+                    shap_buf = None
+
             with st.spinner("Compiling Post-Mortem Report PDF (Form PM-5372)..."):
                 pdf_bytes = generate_forensic_pdf(
                     case_metadata=case_info,
                     pmi_findings=pmi,
                     qc_metrics=qc_report,
+                    shap_plot_buf=shap_buf,
+                    shap_narrative=shap_narrative_list,
                 )
 
             # ---------------------------------------------------------
@@ -3080,9 +3113,26 @@ elif st.session_state["view"] == "verify":
             "dropped_taxa": 0,
         }
 
+        v_shap_exp = st.session_state.get("shap_results")
+        v_shap_buf = None
+        v_shap_narrative = None
+        if v_shap_exp:
+            try:
+                v_shap_buf = generate_attribution_plot_bytes(
+                    v_shap_exp, top_n=8)
+                v_shap_narrative = v_shap_exp.get(
+                    "narrative_bullet_points", [])
+            except Exception:
+                v_shap_buf = None
+
         with st.spinner("Generating Form PM-5372 PDF Report..."):
             verified_pdf_bytes = generate_forensic_pdf(
-                v_case_meta, v_pmi_find, v_qc_met)
+                case_metadata=v_case_meta,
+                pmi_findings=v_pmi_find,
+                qc_metrics=v_qc_met,
+                shap_plot_buf=v_shap_buf,
+                shap_narrative=v_shap_narrative,
+            )
 
         col_dl, col_so = st.columns([3, 1])
         with col_dl:
