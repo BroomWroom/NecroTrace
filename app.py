@@ -64,10 +64,42 @@ importlib.reload(pdf_gen)
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
-# 1. PAGE CONFIGURATION
+# 1. VIEW DEFINITIONS & METADATA
 # -----------------------------------------------------------------------------
+VALID_VIEWS = ["landing", "examination", "verify",
+               "privacy", "terms", "cookies", "404"]
+
+VIEW_TITLES = {
+    "landing": "NecroTrace — Forensic Metagenomics & Microbial Succession Clock",
+    "examination": "NecroTrace — Medical Examiner Triage & Autopsy Suite (Form PM-5372)",
+    "verify": "NecroTrace — Digital Chain-of-Custody & Evidence Verification Portal",
+    "privacy": "NecroTrace — Forensic Data Privacy Policy & Compliance",
+    "terms": "NecroTrace — Terms of Service & Medico-Legal Scope",
+    "cookies": "NecroTrace — Cookie Policy & Third-Party Disclosures",
+    "404": "NecroTrace — 404 File Not Found & Evidence Unresolved",
+}
+
+# Resolve active view for page configuration & metadata
+_raw_query_view = st.query_params.get("view", None)
+_session_view = st.session_state.get("view", None)
+
+if _raw_query_view and _raw_query_view not in VALID_VIEWS and _raw_query_view != "logout":
+    _active_view_config = "404"
+elif _raw_query_view in VALID_VIEWS:
+    _active_view_config = _raw_query_view
+elif _session_view in VALID_VIEWS:
+    _active_view_config = _session_view
+else:
+    _active_view_config = "landing"
+
+# Check if pre-landing authentication gateway applies
+if not st.session_state.get("authenticated_officer") and _active_view_config not in ["verify", "privacy", "terms", "cookies", "404"]:
+    _initial_page_title = "NecroTrace — Examiner Authentication & Access Gateway"
+else:
+    _initial_page_title = VIEW_TITLES.get(_active_view_config, "NecroTrace — Forensic Metagenomics")
+
 st.set_page_config(
-    page_title="NecroTrace",
+    page_title=_initial_page_title,
     page_icon="assets/favicon.png" if os.path.exists(
         "assets/favicon.png") else "assets/logo_icon.png",
     layout="wide",
@@ -113,8 +145,6 @@ if not st.session_state.get("authenticated_officer"):
 if st.session_state.get("authenticated_officer"):
     set_active_officer_session(st.session_state["authenticated_officer"])
 
-VALID_VIEWS = ["landing", "examination", "verify",
-               "privacy", "terms", "cookies", "404"]
 if query_view and query_view not in VALID_VIEWS and query_view != "logout":
     st.session_state["view"] = "404"
 elif "view" not in st.session_state:
@@ -147,6 +177,35 @@ def render_clean_html(html_str: str):
     cleaned_lines = [line.strip()
                      for line in html_str.splitlines() if line.strip()]
     st.markdown("\n".join(cleaned_lines), unsafe_allow_html=True)
+
+
+def sync_document_title(view_name: str):
+    """
+    Synchronizes browser tab document.title instantaneously across client-side
+    single-page state transitions in Streamlit.
+    """
+    if not st.session_state.get("authenticated_officer") and view_name not in ["verify", "privacy", "terms", "cookies", "404"]:
+        target_title = "NecroTrace — Examiner Authentication & Access Gateway"
+    else:
+        target_title = VIEW_TITLES.get(view_name, "NecroTrace — Forensic Metagenomics")
+    components.html(
+        f"""
+        <script>
+            (function() {{
+                try {{
+                    var docTitle = {repr(target_title)};
+                    if (window.parent && window.parent.document) {{
+                        window.parent.document.title = docTitle;
+                    }}
+                    document.title = docTitle;
+                }} catch (err) {{
+                    // Fallback for cross-origin or isolated frame contexts
+                }}
+            }})();
+        </script>
+        """,
+        height=0,
+    )
 
 
 def _load_logo_b64() -> str:
@@ -1122,7 +1181,8 @@ model, err = load_trained_pipeline()
 # =============================================================================
 # PRE-LANDING AUTHENTICATION & EXAMINER ENROLLMENT GATE
 # =============================================================================
-if not st.session_state.get("authenticated_officer") and st.session_state.get("view") != "verify":
+if not st.session_state.get("authenticated_officer") and st.session_state.get("view") not in ["verify", "privacy", "terms", "cookies", "404"]:
+    sync_document_title(st.session_state.get("view", "landing"))
     render_clean_html("""
     <style>
     div[data-testid="stAppViewContainer"] > section.main,
@@ -1334,6 +1394,7 @@ if not st.session_state.get("authenticated_officer") and st.session_state.get("v
 # VIEW 1: BIOLUMINESCENT LABORATORY LANDING PAGE
 # =============================================================================
 if st.session_state["view"] == "landing":
+    sync_document_title("landing")
     render_clean_html("""
     <style>
     div[data-testid="stMainBlockContainer"],
@@ -1911,6 +1972,7 @@ if st.session_state["view"] == "landing":
 # VIEW 2: MEDICAL EXAMINER DIAGNOSTIC TRIAGE WORKFLOW
 # =============================================================================
 elif st.session_state["view"] == "examination":
+    sync_document_title("examination")
 
     # --- STRICT CENTERED LAYOUT (920px) & DARKROOM STYLING ---
     render_clean_html("""
@@ -2919,6 +2981,7 @@ elif st.session_state["view"] == "examination":
 # VIEW 3: OFFICIAL MEDICO-LEGAL DIGITAL VERIFICATION PORTAL
 # =============================================================================
 elif st.session_state["view"] == "verify":
+    sync_document_title("verify")
     # Mandatory QR scan parameter guard: Prevents manual URL manipulation
     has_qr_params = bool(st.query_params.get(
         "seed") and st.query_params.get("case"))
@@ -3346,6 +3409,7 @@ elif st.session_state["view"] == "verify":
 # VIEW 4: PRIVACY POLICY
 # =============================================================================
 elif st.session_state["view"] == "privacy":
+    sync_document_title("privacy")
     render_clean_html(LEGAL_PAGE_CSS)
 
     render_clean_html(f"""
@@ -3472,6 +3536,7 @@ We may update this policy periodically. The "Effective Date" above will always r
 # VIEW 5: TERMS & CONDITIONS
 # =============================================================================
 elif st.session_state["view"] == "terms":
+    sync_document_title("terms")
     render_clean_html(LEGAL_PAGE_CSS)
 
     render_clean_html(f"""
@@ -3584,6 +3649,7 @@ These Terms are governed by and construed in accordance with the laws of India, 
 # VIEW 6: COOKIE & THIRD-PARTY POLICY
 # =============================================================================
 elif st.session_state["view"] == "cookies":
+    sync_document_title("cookies")
     render_clean_html(LEGAL_PAGE_CSS)
 
     render_clean_html(f"""
@@ -3670,6 +3736,7 @@ You can inspect, block, or delete cookies via your browser's Privacy & Security 
 # VIEW 7: 404 ERROR PAGE (DOSSIER NOT FOUND)
 # =============================================================================
 elif st.session_state["view"] == "404":
+    sync_document_title("404")
     render_clean_html(LEGAL_PAGE_CSS)
 
     invalid_view_param = str(st.query_params.get("view", "unknown"))
