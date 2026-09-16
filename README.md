@@ -8,6 +8,7 @@
   [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-22c55e.svg?style=flat-square&logo=python&logoColor=white)](https://python.org)
   [![Streamlit](https://img.shields.io/badge/Streamlit-1.32%2B-ff4b4b.svg?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io)
   [![XGBoost](https://img.shields.io/badge/XGBoost-Quantile%20ML-16a34a.svg?style=flat-square)](https://xgboost.readthedocs.io)
+  [![SHAP](https://img.shields.io/badge/SHAP-TreeExplainer-0284c7.svg?style=flat-square)](https://shap.readthedocs.io)
   [![ReportLab](https://img.shields.io/badge/ReportLab-Form%20PM--5372-0284c7.svg?style=flat-square)](https://www.reportlab.com)
   [![License: MIT](https://img.shields.io/badge/License-MIT-cef79e.svg?style=flat-square&color=222f30&labelColor=cef79e)](LICENSE)
 </div>
@@ -24,8 +25,9 @@ Forensic determination of the time elapsed since death (Postmortem Interval, **P
 
 1. **Metagenomic Succession Clock:** Leverages 16S rRNA taxonomic abundance profiles to track predictable community blooms and crashes across postmortem decay stages.
 2. **Quantile Machine Learning:** Employs tuned Gradient Boosted Quantile Regressors (XGBoost) outputting calibrated 10th, 50th, and 90th percentile bounds rather than subjective single-point guesses.
-3. **Medical Examiner Triage Workflow:** Bridges physical macroscopic observations (corneal opacity, skin marbling, bloating, purged fluids) with molecular bioindicators.
-4. **Forensic Dossier Export (Research Demonstration):** Programmatic synthesis of **Form PM-5372**-style postmortem autopsy reports with cryptographic SHA-256 verification seals.
+3. **Algorithmic Explainability (SHAP):** Decomposes non-linear predictions using TreeSHAP to compute exact Shapley bioindicator feature attributions ($\phi_i$) relative to baseline expectation ($E[f(X)]$), providing transparent, court-admissible justification.
+4. **Medical Examiner Triage Workflow:** Bridges physical macroscopic observations (corneal opacity, skin marbling, bloating, purged fluids) with molecular bioindicators.
+5. **Forensic Dossier Export (Research Demonstration):** Programmatic synthesis of **Form PM-5372**-style postmortem autopsy reports with cryptographic SHA-256 verification seals and embedded SHAP attribution audits.
 
 ```
        [ Metagenomic Data ] (16S rRNA OTU / ASV Abundance Tables)
@@ -44,8 +46,14 @@ Forensic determination of the time elapsed since death (Postmortem Interval, **P
                  │
                  ▼
    ┌────────────────────────────┐
+   │ Algorithmic Explainability │  TreeSHAP Shapley Feature Attribution Engine
+   │ & Bioindicator Auditing    │  Decomposition into Baseline E[f(X)] + Sum(phi_i)
+   └─────────────┬──────────────┘
+                 │
+                 ▼
+   ┌────────────────────────────┐
    │ Diagnostic Triage &        │  Interactive Darkroom Medical Examiner Suite
-   │ Medico-Legal Dossier       │  Form PM-5372 PDF Research Export
+   │ Medico-Legal Dossier       │  Form PM-5372 PDF Research Export + SHAP Audit
    └────────────────────────────┘
 ```
 
@@ -60,6 +68,7 @@ Forensic determination of the time elapsed since death (Postmortem Interval, **P
 | **Environmental Robustness** | Highly volatile to ambient drafts, humidity, clothing | Normalized across temperature and microenvironment covariates |
 | **Analytical Objectivity** | Subjective assessment by investigator | Algorithmic, reproducible mathematical feature extraction |
 | **Uncertainty Quantification** | Heuristic, uncalibrated estimation windows | Formal statistical confidence intervals via Quantile Regression (p10, p50, p90) |
+| **Algorithmic Explainability** | Subjective clinician heuristic / black box | Exact Shapley feature attributions (TreeSHAP) with top bioindicator drivers |
 | **Evidentiary Standard** | Frequently disputed under Daubert / Frye challenges | Auditable bioinformatic provenance with SHA-256 cryptographic verification (research demonstration) |
 
 ---
@@ -72,13 +81,20 @@ Forensic determination of the time elapsed since death (Postmortem Interval, **P
   - *Wave 1: Fresh / Early Stage (0–3 Days)* &bull; Dominated by aerotolerant mucosal and dermal colonizers (*Staphylococcus*, *Streptococcus*, *Cutibacterium*).
   - *Wave 2: Active Putrefaction (3–8 Days)* &bull; Shift toward hypoxic enteric bloomers and liquefaction catalysts (*Clostridium perfringens*, *Proteus mirabilis*, *Bacteroides fragilis*).
   - *Wave 3: Advanced Skeletonization & Soil Leaching (8–25+ Days)* &bull; Proliferation of environmental saprophytes and soil actinomycetes (*Pseudomonas fluorescens*, *Bacillus subtilis*, *Streptomyces albus*).
-- **Minimalist Dispatch Footer:** Streamlined platform navigation, jurisdiction notifications, and research advisories.
+- **Minimalist Dispatch Footer:** Streamlined platform navigation, legal disclosures, and academic research advisories.
 
 ### View 2: Medical Examiner Diagnostic Triage Suite 
 - **Step 01 &bull; Autopsy Particulars:** Standard case registry inputs (PM Report Number, Police Station, Inquest Reference, Deceased Demographics, Ambient Temperatures, Specimen Swab Anatomical Sites).
 - **Step 02 &bull; Morphological Observation Matrix:** Interactive forensic triage correlating macroscopic postmortem findings (corneal clouding, algor status, venous marbling, abdominal bloating, purge fluid) with estimated physiological decay windows.
 - **Step 03 &bull; Bioindicator Image Viewports:** 19 dedicated clinical photographic viewports featuring real microscopy JPEG assets, optical viewfinder reticles, Gram-stain classifications, and biochemical mechanism breakdowns.
-- **Step 04 &bull; Medico-Legal Dossier Synthesis:** Real-time on-screen preview of **Form PM-5372** and one-click export of courtroom-ready legal PDF documents.
+- **Step 04 &bull; Quantile Estimation & SHAP Explainability:** Interactive Plotly timeline gauge (p10–p50–p90 bounds) paired with an automated **TreeSHAP feature attribution card**, plotting top microbial drivers shifting the interval upward or downward with biological narratives.
+- **Step 05 &bull; Medico-Legal Dossier Synthesis (Form PM-5372):** Real-time on-screen preview of **Form PM-5372** and one-click export of forensic PDF documents with cryptographic SHA-256 verification seals, QR mobile verification, and embedded SHAP feature attribution audit tables.
+
+### View 3: Mobile Evidence Verification Portal (`?view=verify`)
+- **Digital Chain-of-Custody Verification:** Mobile-scannable QR code verification allowing authorized officers to validate tamper-evident SHA-256 checksums, view case particulars, inspect microbial bioindicator evidence, and generate synchronized 6-digit mortuary workstation release codes (`NC-XXXXXX`).
+
+### View 4: Legal & Policy Compliance Suite
+- **Dedicated Compliance Pages:** Includes accessible, high-contrast, centered policy documentation for Privacy Policy (`?view=privacy`), Terms of Service (`?view=terms`), Cookie Consent Policy (`?view=cookies`), Refund/Cancellation Terms (`?view=refund`), and a custom 404 Error handler.
 
 ---
 
@@ -160,6 +176,7 @@ NecroTrace/
     ├── auth/                           # Firebase Authentication & access control
     │   ├── __init__.py
     │   └── firebase_auth.py            # Firebase Identity Toolkit REST API client
+    ├── explainability.py               # TreeSHAP algorithmic attribution & narrative engine
     ├── pipeline.py                     # Quantile XGBoost inference & CLR transformation
     ├── report.py                       # Case report structuring utilities
     ├── triage.py                       # Bioindicator catalog & morphological rule engine
@@ -193,6 +210,17 @@ This guarantees that:
 - $\hat{y}_{0.50}$: Median point estimate
 - $\hat{y}_{0.90}$: 90% upper bound (latest probable time of death)
 - Interval $[\hat{y}_{0.10}, \hat{y}_{0.90}]$ provides an empirical 80% confidence window satisfying courtroom standards.
+
+### 3. TreeSHAP Additive Feature Attribution
+To eliminate "black-box" objections in judicial proceedings, individual quantile predictions are decomposed using TreeSHAP into exact, additive feature attribution scores:
+
+$$f(x) = E[f(X)] + \sum_{i=1}^{M} \phi_i(x)$$
+
+where $E[f(X)]$ represents the baseline expected postmortem interval across the reference metagenomic training cohort ($\approx 6.78$ days), and $\phi_i$ denotes the exact Shapley contribution (in elapsed days) exerted by bioindicator or environmental feature $i$:
+- **$\phi_i > 0$ (Positive attribution / Crimson vectors):** Elevated taxa or environmental covariates (e.g., late-stage enteric putrefiers such as *Clostridium perfringens* or elevated ambient temperature) that push the estimated interval upward toward later postmortem decay.
+- **$\phi_i < 0$ (Negative attribution / Sky blue vectors):** Fresh mucosal taxa (e.g., *Streptococcus*, *Cutibacterium*) or suppressing conditions that restrain the estimated interval toward biological cessation.
+
+Each generated autopsy dossier directly embeds the top 8 driving bioindicators alongside automated, plain-English forensic findings to satisfy transparency and legal scrutiny.
 
 ---
 
@@ -228,7 +256,7 @@ NecroTrace was designed with awareness of judicial evidentiary standards for sci
 <div align="center">
   <img src="assets/logo_horizontal.png" alt="NecroTrace Logo" width="380" />
   <br/> 
-https://necrotrace.streamlit.app/
+  https://necrotrace.streamlit.app/</a>
 </div>
 
 ---
