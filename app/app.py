@@ -92,7 +92,7 @@ from src.auth import (
 # 1. PAGE CONFIGURATION
 # -----------------------------------------------------------------------------
 st.set_page_config(
-    page_title="NecroTrace // Forensic Metagenomics",
+    page_title="NecroTrace",
     page_icon="assets/favicon.png" if os.path.exists(
         "assets/favicon.png") else "assets/logo_icon.png",
     layout="wide",
@@ -138,7 +138,8 @@ if not st.session_state.get("authenticated_officer"):
 if st.session_state.get("authenticated_officer"):
     set_active_officer_session(st.session_state["authenticated_officer"])
 
-VALID_VIEWS = ["landing", "examination", "verify", "privacy", "terms", "cookies", "404"]
+VALID_VIEWS = ["landing", "examination", "verify",
+               "privacy", "terms", "cookies", "404"]
 if query_view and query_view not in VALID_VIEWS and query_view != "logout":
     st.session_state["view"] = "404"
 elif "view" not in st.session_state:
@@ -261,6 +262,15 @@ GLOBAL_CSS = """
     header[data-testid="stHeader"],
     div[data-testid="stHeader"] { display: none !important; }
     div[data-testid="stToolbar"] { display: none !important; }
+    /* Precision Footer Styling matching app fonts */
+    .necrotrace-footer,
+    .necrotrace-footer * {
+        font-family: var(--font-display) !important;
+    }
+    .necrotrace-footer .footer-mono {
+        font-family: var(--font-mono) !important;
+    }
+
     footer[data-testid="stFooter"], footer:not(.necrotrace-footer) { display: none !important; }
 
     .stApp,
@@ -1128,7 +1138,7 @@ if not st.session_state.get("authenticated_officer") and st.session_state.get("v
                 key="gate_login_password"
             )
 
-            if st.button("AUTHENTICATE & ENTER SYSTEM", use_container_width=True, key="btn_gate_signin"):
+            if st.button("AUTHENTICATE  &  ENTER SYSTEM", use_container_width=True, key="btn_gate_signin"):
                 if not login_email or not login_pass:
                     st.warning(
                         "Please provide both registered email and password.")
@@ -1145,7 +1155,7 @@ if not st.session_state.get("authenticated_officer") and st.session_state.get("v
                         if officer_info.get("local_id"):
                             st.query_params["auth"] = officer_info["local_id"]
                         st.success(
-                            f"Identity Verified via Cloud Firestore. Welcome, {officer_info.get('name')}.")
+                            f"Identity Verified. Welcome, {officer_info.get('name')}.")
                         st.rerun()
                     else:
                         st.error(auth_res.get('message'))
@@ -1203,7 +1213,7 @@ if not st.session_state.get("authenticated_officer") and st.session_state.get("v
                 elif reg_pass != reg_pass_conf:
                     st.error("Passcodes do not match.")
                 else:
-                    with st.spinner("Enrolling examiner & saving profile to Cloud Firestore..."):
+                    with st.spinner("Enrolling examiner & saving profile..."):
                         reg_res = register_officer(
                             email=reg_email,
                             password=reg_pass,
@@ -1223,7 +1233,7 @@ if not st.session_state.get("authenticated_officer") and st.session_state.get("v
                         if officer_info.get("local_id"):
                             st.query_params["auth"] = officer_info["local_id"]
                         st.success(
-                            f"Profile saved to Cloud Firestore Database. Welcome, {reg_name}.")
+                            f"Profile saved. Welcome, {reg_name}.")
                         st.rerun()
                     else:
                         st.error(
@@ -1310,9 +1320,7 @@ if st.session_state["view"] == "landing":
 
         <!-- Main Hero Body (Centered in visible viewport) -->
         <div style="position: relative; z-index: 10; width: 100%; max-width: 1300px; margin: 0 auto; padding: 48px 48px 64px 48px; box-sizing: border-box; flex: 1; display: flex; flex-direction: column; justify-content: center; pointer-events: auto;">
-            <div class="section-counter" style="backdrop-filter: blur(8px); background: rgba(34, 47, 48, 0.75); width: fit-content; margin-bottom: 24px;">
-                01 / FORENSIC METAGENOMICS
-            </div>
+            
             <h1 class="hero-title" style="text-shadow: 0 2px 24px rgba(0,0,0,0.65);">The microbial clock of human decomposition.</h1>
             <p class="hero-sub" style="text-shadow: 0 2px 14px rgba(0,0,0,0.65);">
                 High-throughput metagenomic taxonomic profiling and quantile regression to infer postmortem intervals with quantifiable evidentiary certainty.
@@ -1618,7 +1626,7 @@ if st.session_state["view"] == "landing":
     # --- SECTION 02: INSTRUMENTATION & ARCHITECTURE (DARK BAND #222f30) ---
     render_clean_html("""
     <div id="platform" style="max-width: 1200px; margin: 0 auto; padding: 90px 40px 80px 40px;">
-        <div class="section-counter">02 / INSTRUMENTATION</div>
+        
         <div style="font-size: 36px; line-height: 1.2; letter-spacing: -0.006em; color: var(--color-paper); margin-bottom: 48px;">
             Quantitative bioinformatic succession architecture.
         </div>
@@ -1661,9 +1669,7 @@ if st.session_state["view"] == "landing":
     render_clean_html("""
     <div id="succession" style="background-color: var(--color-bone-white); color: var(--color-abyssal-ink); padding: 100px 40px; margin-top: 40px;">
         <div style="max-width: 1200px; margin: 0 auto;">
-            <div class="section-counter" style="border-color: var(--color-graphite); color: var(--color-graphite);">
-                03 / SUCCESSION DYNAMICS
-            </div>
+            
             <div style="font-size: 42px; line-height: 1.15; letter-spacing: -0.01em; color: var(--color-abyssal-ink); margin-bottom: 16px;">
                 Three reproducible ecological waves.
             </div>
@@ -1719,9 +1725,7 @@ if st.session_state["view"] == "landing":
     render_clean_html(f"""
     <div id="dossier" style="background-color: var(--color-void); padding: 100px 40px 80px 40px; border-top: 1px solid #1a2223;">
         <div style="max-width: 1200px; margin: 0 auto;">
-            <div class="section-counter" style="border-color: #333333; color: #888888;">
-                04 / MEDICO-LEGAL INTEGRATION
-            </div>
+            
             
             <div style="margin-bottom: 40px;">
                 <h2 style="font-size: clamp(32px, 5vw, 64px); line-height: 1.05; letter-spacing: -0.02em; color: var(--color-paper); margin: 0 0 16px 0;">
@@ -1738,53 +1742,53 @@ if st.session_state["view"] == "landing":
 
     # --- MINIMAL LANDING PAGE FOOTER ---
     render_clean_html(f"""
-    <div class="necrotrace-footer" style="display: block !important; width: 100%; background-color: #000000; border-top: 1px solid #141417; padding-top: 54px; padding-bottom: 38px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-        <div style="max-width: 1120px; margin: 0 auto; padding: 0 24px; box-sizing: border-box;">
+    <div class="necrotrace-footer" style="display: block !important; width: 100%; background-color: #000000; border-top: 1px solid #141417; padding-top: 54px; padding-bottom: 38px; font-family: var(--font-display);">
+        <div style="max-width: 1120px; margin: 0 auto; padding: 0 24px; box-sizing: border-box; font-family: var(--font-display);">
             
             <!-- Top Section: Brand & Links on left, Legal on right -->
             <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 36px 48px;">
                 
                 <!-- Left: Logo & Navigation Links -->
-                <div style="display: flex; flex-direction: column; gap: 24px; min-width: 260px;">
+                <div style="display: flex; flex-direction: column; gap: 24px; min-width: 260px; font-family: var(--font-display);">
                     <!-- Logo mark -->
                     <div style="display: flex; align-items: center; gap: 12px;">
                         <img src="{LOGO_ICON_B64}" style="height: 34px; width: 34px; object-fit: contain; vertical-align: middle; filter: drop-shadow(0 0 10px rgba(116, 194, 92, 0.45));" alt="NecroTrace Logo" />
-                        <span style="font-size: 22px; font-weight: 700; color: #ffffff; letter-spacing: -0.02em; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">necrotrace</span>
+                        <span style="font-size: 22px; font-weight: 600; color: #ffffff; letter-spacing: -0.02em; font-family: var(--font-display);">necrotrace</span>
                     </div>
 
                     <!-- Horizontal Links -->
-                    <div style="display: flex; flex-wrap: wrap; gap: 14px 24px; font-size: 14px; color: #888888;">
-                        <a href="#" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Overview</a>
-                        <a href="#succession" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Features</a>
-                        <a href="#succession" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Methodology</a>
-                        <a href="#dossier" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Dossier</a>
-                        <a href="?view=examination{auth_q}" target="_self" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Examination</a>
-                        <a href="mailto:tanishwalture@gmail.com" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Contact</a>
+                    <div style="display: flex; flex-wrap: wrap; gap: 14px 24px; font-size: 14px; color: #888888; font-family: var(--font-display);">
+                        <a href="#" style="color: #888888; text-decoration: none; font-family: var(--font-display); transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Overview</a>
+                        <a href="#succession" style="color: #888888; text-decoration: none; font-family: var(--font-display); transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Features</a>
+                        <a href="#succession" style="color: #888888; text-decoration: none; font-family: var(--font-display); transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Methodology</a>
+                        <a href="#dossier" style="color: #888888; text-decoration: none; font-family: var(--font-display); transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Dossier</a>
+                        <a href="?view=examination{auth_q}" target="_self" style="color: #888888; text-decoration: none; font-family: var(--font-display); transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Examination</a>
+                        <a href="mailto:tanishwalture@gmail.com" style="color: #888888; text-decoration: none; font-family: var(--font-display); transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Contact</a>
                     </div>
                 </div>
 
                 <!-- Right: Legal Links & Project Info -->
-                <div style="display: flex; flex-direction: column; gap: 14px; min-width: 280px;">
-                    <div style="font-size: 15px; font-weight: 600; color: #ffffff;">
+                <div style="display: flex; flex-direction: column; gap: 14px; min-width: 280px; font-family: var(--font-display);">
+                    <div style="font-size: 15px; font-weight: 600; color: #ffffff; letter-spacing: -0.01em; font-family: var(--font-display);">
                         Legal &amp; Policies
                     </div>
-                    <div style="display: flex; flex-wrap: wrap; gap: 10px 20px; font-size: 13px;">
-                        <a href="?view=privacy" target="_self" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Privacy Policy</a>
-                        <a href="?view=terms" target="_self" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Terms &amp; Conditions</a>
-                        <a href="?view=cookies" target="_self" style="color: #888888; text-decoration: none; transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Cookie &amp; Third-Party Policy</a>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px 20px; font-size: 13px; font-family: var(--font-display);">
+                        <a href="?view=privacy" target="_self" style="color: #888888; text-decoration: none; font-family: var(--font-display); transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Privacy Policy</a>
+                        <a href="?view=terms" target="_self" style="color: #888888; text-decoration: none; font-family: var(--font-display); transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Terms &amp; Conditions</a>
+                        <a href="?view=cookies" target="_self" style="color: #888888; text-decoration: none; font-family: var(--font-display); transition: color 0.15s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#888888'">Cookie &amp; Third-Party Policy</a>
                     </div>
-                    <div style="font-size: 12px; color: #52525b; line-height: 1.45; margin-top: 4px;">
+                    <div style="font-size: 12px; color: #71717a; line-height: 1.5; margin-top: 4px; font-family: var(--font-display);">
                         Developed by Tanish Walture (Team BroomWroom)<br/>
-                        Contact: <a href="mailto:tanishwalture@gmail.com" style="color: #71717a; text-decoration: none;">tanishwalture@gmail.com</a>
+                        Contact: <a href="mailto:tanishwalture@gmail.com" style="color: #888888; text-decoration: none; font-family: var(--font-display);">tanishwalture@gmail.com</a>
                     </div>
                 </div>
 
             </div>
 
             <!-- Academic Disclaimer -->
-            <div style="margin-top: 32px; padding: 14px 18px; background: rgba(245, 158, 11, 0.06); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 8px;">
-                <div style="font-size: 11.5px; color: #a1a1aa; line-height: 1.5;">
-                    <span style="color: #f59e0b; font-weight: 600;">&#9888; ACADEMIC RESEARCH PROTOTYPE</span> &mdash; NecroTrace is an educational demonstration project. It is NOT certified, validated, or approved for use in actual forensic investigations, criminal cases, or legal proceedings. All generated reports are for research and demonstration purposes only.
+            <div style="margin-top: 32px; padding: 14px 18px; background: rgba(245, 158, 11, 0.06); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 8px; font-family: var(--font-display);">
+                <div style="font-size: 12px; color: #a1a1aa; line-height: 1.55; font-family: var(--font-display);">
+                    <span class="footer-mono" style="color: #f59e0b; font-weight: 600; font-size: 11px; letter-spacing: 0.04em;">&#9888; ACADEMIC RESEARCH PROTOTYPE</span> &mdash; NecroTrace is an educational demonstration project. It is NOT certified, validated, or approved for use in actual forensic investigations, criminal cases, or legal proceedings. All generated reports are for research and demonstration purposes only.
                 </div>
             </div>
 
@@ -1792,9 +1796,9 @@ if st.session_state["view"] == "landing":
             <div style="height: 1px; width: 100%; background-color: #171717; margin: 28px 0 20px 0;"></div>
 
             <!-- Bottom Row: Copyright & Social Icons -->
-            <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; font-size: 14px; color: #71717a;">
-                <div>
-                    &copy; 2026 NecroTrace. All rights reserved. &bull; <a href="https://github.com/BroomWroom/NecroTrace/blob/main/LICENSE" target="_blank" rel="noreferrer" style="color: #71717a; text-decoration: none;">MIT License</a>
+            <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; font-size: 13px; color: #71717a; font-family: var(--font-display);">
+                <div style="font-family: var(--font-display);">
+                    &copy; 2026 NecroTrace. All rights reserved. &bull; <a href="https://github.com/BroomWroom/NecroTrace/blob/main/LICENSE" target="_blank" rel="noreferrer" style="color: #71717a; text-decoration: none; font-family: var(--font-display);">MIT License</a>
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 20px;">
@@ -2588,7 +2592,8 @@ elif st.session_state["view"] == "examination":
             if "case_passcode_seeds" not in st.session_state:
                 st.session_state["case_passcode_seeds"] = {}
             if clean_pm not in st.session_state["case_passcode_seeds"]:
-                st.session_state["case_passcode_seeds"][clean_pm] = secrets.token_hex(4)
+                st.session_state["case_passcode_seeds"][clean_pm] = secrets.token_hex(
+                    4)
             case_seed = st.session_state["case_passcode_seeds"][clean_pm]
 
             qr_url = f"https://necrotrace.streamlit.app/?view=verify&case={clean_pm}&inq={clean_inq}&pmi={p_est:.1f}d&hash={evidence_hash[:16]}&seed={case_seed}"
@@ -2676,7 +2681,8 @@ elif st.session_state["view"] == "examination":
             )
 
             if not is_report_unlocked:
-                expected_passcode = generate_release_passcode(clean_pm, seed=case_seed)
+                expected_passcode = generate_release_passcode(
+                    clean_pm, seed=case_seed)
 
                 render_clean_html(f"""
                 <div style="background: #172324; border: 1.5px solid #f59e0b; border-radius: 12px; padding: 22px; margin-top: 14px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
@@ -2725,7 +2731,8 @@ elif st.session_state["view"] == "examination":
                         if st.button("VERIFY PASSCODE & RELEASE REPORT", use_container_width=True, key=f"btn_unlock_{clean_pm}"):
                             if verify_release_passcode(clean_pm, pass_in, seed=case_seed):
                                 st.session_state["unlocked_reports"].add(pm_no)
-                                st.session_state["unlocked_reports"].add(clean_pm)
+                                st.session_state["unlocked_reports"].add(
+                                    clean_pm)
                                 st.success(
                                     "Workstation Release Code Accepted. PDF Dossier released.")
                                 st.rerun()
@@ -2734,7 +2741,8 @@ elif st.session_state["view"] == "examination":
                                     "Invalid release passcode. Please authenticate via the QR code on your mobile device first.")
                     with btn_v_col2:
                         if st.button("↻ REFRESH CODE", use_container_width=True, key=f"btn_refresh_{clean_pm}"):
-                            st.session_state["case_passcode_seeds"][clean_pm] = secrets.token_hex(4)
+                            st.session_state["case_passcode_seeds"][clean_pm] = secrets.token_hex(
+                                4)
                             st.rerun()
 
                 with lock_col2:
@@ -2788,7 +2796,8 @@ elif st.session_state["view"] == "examination":
                     use_container_width=True,
                 )
 
-    st.markdown("<hr class='hairline-dark' style='margin: 40px 0 20px 0;'>", unsafe_allow_html=True)
+    st.markdown("<hr class='hairline-dark' style='margin: 40px 0 20px 0;'>",
+                unsafe_allow_html=True)
     if st.button("← RETURN TO PLATFORM OVERVIEW (VIEW 1)", use_container_width=True, key="btn_return_v1_bottom"):
         st.session_state["view"] = "landing"
         st.query_params["view"] = "landing"
@@ -3234,7 +3243,7 @@ When you register as an examiner on NecroTrace, we collect the following persona
 | **Police Station / Forensic Lab** | Institutional affiliation for report context | Optional |
 | **Professional Role** | Role classification within the application | Optional |
 
-> 🔒 **Case Examination Data**: All clinical autopsy particulars entered during an examination (deceased demographics, morphological findings, temperature, post-mortem intervals) are processed **ephemerally in your active browser session**. They are **NOT stored in any database** and are discarded upon session end.
+>  **Case Examination Data**: All clinical autopsy particulars entered during an examination (deceased demographics, morphological findings, temperature, post-mortem intervals) are processed **ephemerally in your active browser session**. They are **NOT stored in any database** and are discarded upon session end.
 
 **Dynamic Passcodes**: Temporary 6-digit release tokens are stored in Cloud Firestore for cross-device synchronization and expire automatically within 3 minutes.
 
@@ -3298,7 +3307,8 @@ NecroTrace is an academic research prototype intended for forensic researchers a
 We may update this policy periodically. The "Effective Date" above will always reflect the latest revision.
     """)
 
-    st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-top: 28px;'></div>",
+                unsafe_allow_html=True)
     b_col1, b_col2 = st.columns(2)
     with b_col1:
         if st.button("← RETURN TO LANDING MATRIX", use_container_width=True, key="btn_priv_landing"):
@@ -3409,7 +3419,8 @@ Under no circumstances shall the authors, developers, or affiliated institutions
 These Terms are governed by and construed in accordance with the laws of India, including the **Information Technology Act 2000** and the **Digital Personal Data Protection Act 2023**.
     """)
 
-    st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-top: 28px;'></div>",
+                unsafe_allow_html=True)
     b_col1, b_col2 = st.columns(2)
     with b_col1:
         if st.button("← RETURN TO LANDING MATRIX", use_container_width=True, key="btn_terms_landing"):
@@ -3494,7 +3505,8 @@ Because NecroTrace **exclusively uses strictly necessary session cookies** and o
 You can inspect, block, or delete cookies via your browser's Privacy & Security settings. Note that disabling session cookies will prevent Streamlit from maintaining application state.
     """)
 
-    st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-top: 28px;'></div>",
+                unsafe_allow_html=True)
     b_col1, b_col2 = st.columns(2)
     with b_col1:
         if st.button("← RETURN TO LANDING MATRIX", use_container_width=True, key="btn_cook_landing"):
@@ -3598,4 +3610,3 @@ elif st.session_state["view"] == "404":
             st.query_params.clear()
             st.query_params["view"] = "examination"
             st.rerun()
-
